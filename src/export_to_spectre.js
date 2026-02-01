@@ -3,10 +3,20 @@ let exportButton;
 function load() {
     exportButton = new Action("export-to-spectre-button", {
         click() {
-            let a = TextureLayer.name;
-            let text = "";
-
-            const json = JSON.stringify({ a }, null, 2);
+            //this returns quite a lot of metadata about all textures
+            let textures = Project?.textures ?? [];
+            //loop over them and extract the "width" and "height", and "img":"tex":"name" properties
+            let properties = [];
+            for (const texture of textures) {
+                properties.push({
+                    texture: texture.img.tex.name, // same format as block textures
+                    texture_size: [ // technically more like a ratio than a size but making it the actual ratio (eg, 1:1 for square) would lead to floating point precision issues
+                        texture.width,
+                        texture.height
+                    ]
+                });
+            }
+            const json = JSON.stringify({ properties }, null, 2);
             Blockbench.export({
                 type: 'Spectre Model',
                 extensions: ['json'],
