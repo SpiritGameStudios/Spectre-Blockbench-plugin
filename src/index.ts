@@ -50,7 +50,7 @@ BBPlugin.register(
     title: 'Export to Spectre',
     author: 'Kilip1000 & CallMeEcho',
     description: 'Export your project as a Spectre json.',
-    icon: 'icon.png',
+    icon: '../icon.png',
     creation_date: '2025-02-01',
     version: '2.0.0',
     variant: 'desktop',
