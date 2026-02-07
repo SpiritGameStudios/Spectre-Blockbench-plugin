@@ -5,9 +5,9 @@ function load() {
         {
             action: new Action("export-to-spectre-button", {
                 click() {
-                    //this returns quite a lot of metadata about all textures
+                    // this returns quite a lot of metadata about all textures
                     let textures = Project?.textures ?? [];
-                    //loop over them and extract the "width" and "height", and "img":"tex":"name" properties
+                    // loop over them and extract the "width" and "height", and "img":"tex":"name" properties
                     let properties = [];
                     for (const texture of textures) {
                         properties.push({
