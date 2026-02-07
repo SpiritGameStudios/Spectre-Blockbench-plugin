@@ -1,6 +1,12 @@
+import {createNewRenderLayer, loadRenderLayerPanel, unloadRenderLayerPanel} from "./renderlayer/renderlayer";
+import {loadSpectreProperties, unloadSpectreProperties} from "./properties";
+
 let menuItems: { action: Action, menuCategory: string }[];
 
 function load() {
+    loadSpectreProperties()
+    loadRenderLayerPanel();
+
     menuItems = [
         {
             action: new Action("export-to-spectre-button", {
@@ -27,10 +33,20 @@ function load() {
                     });
                 },
 
-                icon: "S",
+                icon: "grain",
                 name: "Export Spectre Model"
             }),
             menuCategory: "file.export"
+        },
+        {
+            action: new Action("create-spectre-render-layer", {
+                click() {
+                    createNewRenderLayer();
+                },
+                icon: "icon-create_bitmap",
+                name: "Create Render Layer"
+            }),
+            menuCategory: "file.view"
         }
     ]
 
@@ -40,6 +56,9 @@ function load() {
 }
 
 function unload() {
+    unloadSpectreProperties();
+    unloadRenderLayerPanel();
+
     for (const menuItem of menuItems) {
         menuItem.action.delete()
     }
@@ -50,7 +69,8 @@ BBPlugin.register(
     title: 'Export to Spectre',
     author: 'Kilip1000 & CallMeEcho',
     description: 'Export your project as a Spectre json.',
-    // NOTE: This back up directory needs to be removed when the built js file isn't inside the `dist` folder
+    // NOTE: This move back directory needs to be removed when the built js file isn't inside the `dist` folder
+    // Also: about.md also seems messed up because of this directory thing, it should fix itself when this is changed
     icon: '../icon.png',
     creation_date: '2025-02-01',
     version: '2.0.0',
