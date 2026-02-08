@@ -24,7 +24,8 @@ let spectreProperties: Property<any>[] = [];
 
 export function loadSpectreProperties(): void {
     createSpectreProperty(ModelProject, "array", RENDER_LAYERS_PROPERTY_ID, {
-        label: "Render Layers",
+        label: "Spectre Render Layers",
+        exposed: false
     });
 }
 

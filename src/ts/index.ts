@@ -1,4 +1,4 @@
-import {createNewRenderLayer, loadRenderLayerPanel, unloadRenderLayerPanel} from "./renderlayer/renderlayer";
+import {addRenderLayerDialog, loadRenderLayerPanel, unloadRenderLayerPanel} from "./renderlayer/renderlayer";
 import {loadSpectreProperties, unloadSpectreProperties} from "./properties";
 
 let menuItems: { action: Action, menuCategory: string }[];
@@ -41,7 +41,7 @@ function load() {
         {
             action: new Action("create-spectre-render-layer", {
                 click() {
-                    createNewRenderLayer();
+                    addRenderLayerDialog();
                 },
                 icon: "icon-create_bitmap",
                 name: "Create Render Layer"
