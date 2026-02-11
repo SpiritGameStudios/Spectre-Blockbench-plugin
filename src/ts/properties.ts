@@ -1,4 +1,4 @@
-import {RenderLayer} from "./renderlayer/renderlayer";
+import {RenderLayer} from "./renderlayer";
 
 export const RENDER_LAYERS_PROPERTY_ID: string = "spectre_project_render_layers";
 

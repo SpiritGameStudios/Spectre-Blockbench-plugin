@@ -1,4 +1,4 @@
-import {getRenderLayersProperty} from "../properties";
+import {getRenderLayersProperty} from "./properties";
 
 // Main Render Layer class which holds information about each layer
 // TODO - Parse the related info to reconstruct this class with the custom format
