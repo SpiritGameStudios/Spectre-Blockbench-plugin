@@ -1,4 +1,4 @@
-import {addRenderLayerDialog, loadRenderLayerPanel, unloadRenderLayerPanel} from "./renderlayer";
+import {addRenderLayerDialog, loadRenderLayers, unloadRenderLayers} from "./renderlayer";
 import {loadSpectreProperties, unloadSpectreProperties} from "./properties";
 import {SPECTRE_CODEC, unloadSpectreFormat} from "./format";
 
@@ -6,7 +6,7 @@ let menuItems: { action: Action, menuCategory: string }[];
 
 function load() {
     loadSpectreProperties()
-    loadRenderLayerPanel();
+    loadRenderLayers();
 
     menuItems = [
         {
@@ -37,7 +37,7 @@ function load() {
 }
 
 function unload() {
-    unloadRenderLayerPanel();
+    unloadRenderLayers();
     unloadSpectreProperties();
     unloadSpectreFormat();
 

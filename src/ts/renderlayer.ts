@@ -13,18 +13,20 @@ export class RenderLayer {
 
     constructor(name: string, type: string, textureIdentifier: string, previewTextureUuid: string) {
         this.name = name || "Layer";
-        this.type = type;
+        this.type = type || "type_missing";
         this.textureIdentifier = textureIdentifier || "minecraft:no_texture";
         this.previewTextureUuid = previewTextureUuid || undefined;
     }
 
-    public select(event: MouseEvent): void {
+    select(event: MouseEvent) {
         this.selected = true;
         updateInterfacePanels();
+        return this;
     }
 
-    public unselect() {
+    unselect() {
         this.selected = false;
+        return this;
     }
 
     public getTexture(): Texture {
@@ -39,15 +41,17 @@ export class RenderLayer {
 
 let renderLayerPanel: Panel;
 
-export function loadRenderLayerPanel(): void {
+export function loadRenderLayers(): void {
+    // Spectre Layers panel
     renderLayerPanel = createRenderLayerPanel();
+    updateInterfacePanels();
 }
 
-export function unloadRenderLayerPanel(): void {
+export function unloadRenderLayers(): void {
     renderLayerPanel.delete();
 }
 
-function addRenderLayer(renderLayer: RenderLayer): void {
+export function addRenderLayer(renderLayer: RenderLayer): void {
     let projectRenderLayers: Array<RenderLayer> = getRenderLayersProperty();
     if (projectRenderLayers != undefined) {
         projectRenderLayers.push(renderLayer);
@@ -237,15 +241,15 @@ function createRenderLayerPanel(): Panel {
                 "RenderLayer": renderLayerComponent
             },
             methods: {
-                openMenu(event) { // Opens a menu on right click
+                openMenu(event): void { // Opens a menu on right click
                     // console.log("hiya");
                     // renderLayerPanel.show(event);
                 },
-                getRenderLayers() {
+                getRenderLayers(): RenderLayer[] {
                     return getRenderLayersProperty();
                 },
-                unselect() {
-                    unselectAllLayers();
+                unselect(): void {
+                    // unselectAllLayers();
                 }
             },
             template: `
@@ -311,9 +315,3 @@ function createAddRenderLayerFormConfig(): InputFormConfig {
         }
     }
 }
-
-// I don't know what or if this does anything
-// Object.assign(window, {
-//     RenderLayer,
-//     unselectAllLayers
-// })
