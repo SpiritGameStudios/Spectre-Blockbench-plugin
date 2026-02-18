@@ -1,12 +1,5 @@
-import {getRenderLayersProperty} from "../properties";
-import {
-    addRenderLayer,
-    getRenderLayerTextureSource,
-    RenderLayer,
-    selectRenderLayer,
-    unselectAllRenderLayers
-} from "./renderlayer";
-
+// This file holds all functions related to Render Layer UI, including panel(s) and input dialog(s)
+import {addRenderLayer, RenderLayer} from "./renderlayer";
 
 let renderLayerPanel: Panel;
 
@@ -39,129 +32,22 @@ export function addRenderLayerDialog(): void {
             addRenderLayer(renderLayer);
 
             dialog.hide();
+            Blockbench.showQuickMessage(`Created ${formResult.layerName || "Layer"} Render Layer!`)
         }
     })
     dialog.show();
 }
 
 function createRenderLayerPanel(): Panel {
+    // @ts-expect-error - I don't know why my IDE is erroring Vue here, but it does work fine
     let renderLayerComponent = Vue.extend({
         props: {
-            renderlayer
+
         },
         methods: {
-            getDescription(renderlayer: RenderLayer): string {
-                return `${renderlayer.data.type}, ${renderlayer.data.textureIdentifier}`;
-            },
-            selectRenderLayer(renderlayer: RenderLayer, mouseEvent: MouseEvent): void {
-                selectRenderLayer(renderlayer, mouseEvent);
-            },
-            dragRenderLayer(mouseEvent: MouseEvent): void {
-                if (mouseEvent.button == 1) return; // Don't accept middle click I think this is doing?
-                if (getFocusedTextInput()) return;
 
-                let renderlayer = this.renderlayer;
-                let active: boolean = false;
-                let helper;
-
-                let vueScope = this;
-
-                // Scrolling
-                let list: HTMLElement = document.getElementById("renderlayer_list");
-                let listOffset = $(list).offset();
-
-                // Magic numbers from https://github.com/JannisX11/blockbench/blob/master/js/texturing/textures.js#L2495
-                let scrollInterval = function() {
-                    if (!active) return;
-                    if (mouse_pos.y < listOffset.top) {
-                        list.scrollTop += (mouse_pos.y - listOffset.top) / 7 - 3;
-                    } else if (mouse_pos.y > listOffset.top + list.clientHeight) {
-                        list.scrollTop += (mouse_pos.y - (listOffset.top + list.clientHeight)) / 6 + 3;
-                    }
-                }
-
-                let scrollInternvalID;
-
-                function move(moveMouseEvent: MouseEvent): void {
-                    let offsetX: number = moveMouseEvent.clientX - mouseEvent.clientX;
-                    let offsetY: number = moveMouseEvent.clientY - mouseEvent.clientY;
-
-                    if (!active) {
-                        let distance: number = Math.sqrt(Math.pow(offsetX, 2) + Math.pow(offsetY, 2));
-                        if(distance > 6) {
-                            active = true;
-                        }
-                    }
-                    if(!active) return;
-
-                    if (moveMouseEvent) moveMouseEvent.preventDefault();
-
-                    // Fake display element which follows the mouse when dragged
-                    if (!helper) {
-                        helper = vueScope.$el.cloneNode();
-                        helper.classList.add("texture_drag_helper");
-                        helper.setAttribute("layerid", renderlayer.data.name)
-
-                        document.body.append(helper);
-                        scrollInternvalID = setInterval(scrollInterval, 1000/60);
-                        Blockbench.addFlag("dragging_renderlayers");
-                    }
-                    helper.style.left = `${moveMouseEvent.clientX}px`
-                    helper.style.top = `${moveMouseEvent.clientY}px`
-
-                    // Drag
-                    $(".outliner_node[order]").attr("order", null);
-                    $(".drag_hover").removeClass("drag_hover");
-                    $(".renderlayer[order]").attr("order", null);
-
-                    // TODO - Apply to bones/cubes by checking drag here
-
-                    // Apply move above/below indicator (the blue lines with the default theme)
-                    if (isNodeUnderCursor(document.querySelector("#renderlayer_list"), moveMouseEvent)) {
-                        let layerTarget = findNodeUnderCursor("#renderlayer_list li.renderlayer", moveMouseEvent);
-                        if (layerTarget) {
-                            let targetOffsetY = moveMouseEvent.clientY - $(layerTarget).offset().top;
-                            layerTarget.setAttribute("order", targetOffsetY > 24 ? "1" : "-1");
-                            return;
-                        }
-                    }
-                }
-
-                function drop(dropMouseEvent: MouseEvent): void {
-                    if (helper) helper.remove();
-                    clearInterval(scrollInternvalID);
-                    removeEventListeners(document, "mousemove touchmove", move);
-                    removeEventListeners(document, "mouseup touchend", drop);
-                    dropMouseEvent.stopPropagation();
-
-                    if (!active || Menu.open) return;
-
-                    Blockbench.removeFlag("dragging_renderlayers");
-                }
-
-                addEventListeners(document, "mousemove touchmove", move, {passive: false});
-                addEventListeners(document, "mouseup touchend", drop, {passive: false});
-            },
-            getRenderLayerTextureSource(layer: RenderLayer): string {
-                return getRenderLayerTextureSource(layer);
-            }
         },
         template: `
-            <li
-                v-bind:class="{ selected: renderlayer.selected }"
-                v-bind:layerid="renderlayer.data.name"
-                class="texture"
-                @click.stop="selectRenderLayer(renderlayer, $event)"
-                @mousedown.stop="dragRenderLayer($event)" @touchstart.stop="dragRenderLayer($event)"
-            >
-            <div class="texture_icon_wrapper">
-              <img v-bind:texid="renderlayer.data.textureIdentifier" v-bind:src="getRenderLayerTextureSource(renderlayer)" class="texture_icon" width="48px" alt="" />
-            </div>
-              <div class="texture_description_wrapper">
-                <div class="texture_name">{{ renderlayer.data.name }}</div>
-                <div class="texture_res">{{ getDescription(renderlayer) }}</div>
-              </div>              
-            </li>
         `
     })
 
@@ -202,27 +88,10 @@ function createRenderLayerPanel(): Panel {
                 "RenderLayer": renderLayerComponent
             },
             methods: {
-                // openMenu(event): void { // Opens a menu on right click
-                //     // console.log("hiya");
-                //     // renderLayerPanel.show(event);
-                // },
-                getRenderLayers(): RenderLayer[] {
-                    return getRenderLayersProperty();
-                },
-                unselectAll(): void {
-                    unselectAllRenderLayers();
-                }
+
             },
             template: `
-              <div>
-                <ul id="renderlayer_list" class="list mobile_scrollbar" @click.stop="unselectAll()">
-                  <RenderLayer
-                      v-for="renderlayer in getRenderLayers()"
-                      :key="renderlayer.data.name"
-                      :renderlayer="renderlayer"
-                  ></RenderLayer>
-                </ul>
-              </div>
+                
             `
         }
     })
