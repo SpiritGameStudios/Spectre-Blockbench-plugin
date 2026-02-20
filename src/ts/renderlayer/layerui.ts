@@ -1,6 +1,7 @@
 // This file holds all functions related to Render Layer UI, including panel(s) and input dialog(s)
 import {addRenderLayer, RenderLayer, unselectAllRenderLayers} from "./renderlayer";
 import {getRenderLayersProperty} from "../properties";
+import {SPECTRE_CODEC_FORMAT_ID} from "../format";
 
 let renderLayerPanel: Panel;
 
@@ -94,7 +95,7 @@ function createRenderLayerPanel(): Panel {
         growable: true,
         resizable: true,
         condition: {
-            // TODO - Spectre project type check here
+            formats: [SPECTRE_CODEC_FORMAT_ID],
             modes: ["edit", "paint"]
         },
         default_position: {
@@ -111,14 +112,13 @@ function createRenderLayerPanel(): Panel {
                 name: "Spectre Layers Toolbar",
                 id: "spectre_layer_toolbar",
                 children: [
-                    "create-spectre-render-layer",
-                    "+", // Everything after this will appear to the right of the bar instead of the left
-                    "export-to-spectre-button"
+                    "create-spectre-render-layer"
+                    // "+", // Everything after this will appear to the right of the bar instead of the left
+                    // "export-to-spectre-button" // I think this is causing the toolbar to not load right away
                 ]
             })
         ],
         component: {
-            name: "spectre-render-layers",
             data() { return {
                 renderlayers: getRenderLayersProperty()
             }},
@@ -169,7 +169,7 @@ function createAddRenderLayerFormConfig(): InputFormConfig {
             label: "generic.name",
             description: "The name of this Render Layer. Converted to an ID for linking bones/cubes to layers, and used as given for debugging.",
             type: "text",
-            placeholder: "layer",
+            placeholder: "Layer",
         },
         layerType: {
             label: "Type Identifier",

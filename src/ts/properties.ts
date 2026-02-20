@@ -1,4 +1,5 @@
 import {RenderLayer} from "./renderlayer/renderlayer";
+import {isSpectreProject} from "./format";
 
 export const RENDER_LAYERS_PROPERTY_ID: string = "spectre_project_render_layers";
 
@@ -6,22 +7,15 @@ export function getRenderLayersProperty(): Array<RenderLayer> {
     return Project[RENDER_LAYERS_PROPERTY_ID] || [];
 }
 
-
-
 let spectreProperties: Property<any>[] = [];
 
 export function loadSpectreProperties(): void {
     registerSpectreProperty(new RenderLayerProperty(RENDER_LAYERS_PROPERTY_ID, {
         label: "Spectre Render Layers",
         exposed: false,
-        export: true
+        export: true,
+        condition: isSpectreProject()
     }));
-
-    // createSpectreProperty(ModelProject, "array", RENDER_LAYERS_PROPERTY_ID, {
-    //     label: "Spectre Render Layers",
-    //     exposed: false,
-    //     export: true,
-    // });
 }
 
 export function unloadSpectreProperties(): void {

@@ -1,50 +1,20 @@
 import {loadRenderLayers, unloadRenderLayers} from "./renderlayer/renderlayer";
 import {loadSpectreProperties, unloadSpectreProperties} from "./properties";
-import {SPECTRE_CODEC, unloadSpectreFormat} from "./format";
-import {addRenderLayerDialog} from "./renderlayer/layerui";
-
-let menuItems: { action: Action, menuCategory: string }[];
+import {unloadSpectreFormat} from "./format";
+import {loadSpectreActions, unloadSpectreActions} from "./actions";
 
 function load() {
     loadSpectreProperties()
     loadRenderLayers();
-
-    menuItems = [
-        {
-            action: new Action("export-to-spectre-button", {
-                click() {
-                    SPECTRE_CODEC.export();
-                },
-                icon: "resize",
-                name: "Export Spectre Model"
-            }),
-            menuCategory: "file.export"
-        },
-        {
-            action: new Action("create-spectre-render-layer", {
-                click() {
-                    addRenderLayerDialog();
-                },
-                icon: "icon-create_bitmap",
-                name: "Create Render Layer"
-            }),
-            menuCategory: "file.view"
-        }
-    ]
-
-    for (const menuItem of menuItems) {
-        MenuBar.addAction(menuItem.action, menuItem.menuCategory)
-    }
+    loadSpectreActions();
 }
 
 function unload() {
     unloadRenderLayers();
     unloadSpectreProperties();
-    unloadSpectreFormat();
+    unloadSpectreActions();
 
-    for (const menuItem of menuItems) {
-        menuItem.action.delete()
-    }
+    unloadSpectreFormat();
 }
 
 BBPlugin.register(
@@ -57,6 +27,7 @@ BBPlugin.register(
     icon: '../icon.png',
     creation_date: '2025-02-01',
     version: '2.0.0',
+    // NOTE: I've changed this to "both" to test on the web app to see if any issues are cache issues or not
     variant: 'both',
     min_version: '4.12.4',
     has_changelog: false,
