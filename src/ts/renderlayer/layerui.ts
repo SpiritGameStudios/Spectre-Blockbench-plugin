@@ -7,10 +7,20 @@ let renderLayerPanel: Panel;
 export function loadRenderLayerPanel(): void {
     // Spectre Layers panel
     renderLayerPanel = createRenderLayerPanel();
+
+    // Ensure the Spectre Layers Panel stays up to date with Render Layer changes & Project switches
+    // THIS EVENT IS SO IMPORTANT IT ISN'T EVEN FUNNY
+    Blockbench.on("load_editor_state", updateRenderLayerPanel);
 }
 
 export function unloadRenderLayerPanel(): void {
     renderLayerPanel.delete();
+
+    Blockbench.removeListener("load_editor_state", updateRenderLayerPanel);
+}
+
+function updateRenderLayerPanel(): void {
+    renderLayerPanel.inside_vue.renderlayers = getRenderLayersProperty();
 }
 
 export function addRenderLayerDialog(): void {
@@ -77,7 +87,7 @@ function createRenderLayerPanel(): Panel {
         `
     })
 
-    return new RenderLayerPanel("render_layers", {
+    return new Panel("render_layers", {
         icon: "fa-layer-group",
         name: "Spectre Layers",
         id: "render_layers",
@@ -107,10 +117,6 @@ function createRenderLayerPanel(): Panel {
                 ]
             })
         ],
-        onResize() {
-            this.inside_vue._data.currentFrame += 1;
-            this.inside_vue._data.currentFrame -= 1;
-        },
         component: {
             name: "spectre-render-layers",
             data() { return {
@@ -191,16 +197,5 @@ function createAddRenderLayerFormConfig(): InputFormConfig {
             text: "",
             type: "info",
         }
-    }
-}
-
-class RenderLayerPanel extends Panel {
-    constructor(id: string | PanelOptions, data: PanelOptions) {
-        super(id, data);
-    }
-
-    update(dragging?: boolean): this {
-        this.inside_vue.renderlayers = getRenderLayersProperty();
-        return super.update(dragging);
     }
 }

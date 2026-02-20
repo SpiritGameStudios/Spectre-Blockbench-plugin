@@ -4,52 +4,10 @@ import {SPECTRE_CODEC, unloadSpectreFormat} from "./format";
 import {addRenderLayerDialog} from "./renderlayer/layerui";
 
 let menuItems: { action: Action, menuCategory: string }[];
-let testPanel: Panel;
 
 function load() {
     loadSpectreProperties()
     loadRenderLayers();
-
-    testPanel = new Panel("test_panel", {
-        name: "Test Panel",
-        icon: "explosion",
-        growable: true,
-        resizable: true,
-        condition: {
-            modes: ['edit', 'paint']
-        },
-        default_position: {
-            slot: "left_bar",
-            float_position: [0, 0],
-            float_size: [300, 400],
-            height: 400
-        },
-        component: {
-            data() { return {
-                textures: Texture.all,
-            }},
-            methods: {
-                getAllTextures(): Texture[] {
-                    return this.textures;
-                },
-                getEntryName(texture: Texture): string {
-                    return `${texture.name} - ${texture.selected}`;
-                }
-            },
-            template: `
-                <div>
-                  <ul id="texture_list" class="list mobile_scrollbar">
-                    <li v-for="texture in getAllTextures()">{{ getEntryName(texture) }}</li>
-                  </ul>
-                </div>
-            `
-        },
-    });
-
-    Blockbench.on("load_editor_state", () => {
-        // Update panel's textures variable when switching Project tabs (and seemingly with Texture.all changes too?)
-        testPanel.inside_vue.textures = Texture.all;
-    })
 
     menuItems = [
         {
@@ -83,7 +41,6 @@ function unload() {
     unloadRenderLayers();
     unloadSpectreProperties();
     unloadSpectreFormat();
-    testPanel.delete();
 
     for (const menuItem of menuItems) {
         menuItem.action.delete()
