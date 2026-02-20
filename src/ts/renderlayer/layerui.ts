@@ -1,12 +1,12 @@
 // This file holds all functions related to Render Layer UI, including panel(s) and input dialog(s)
-import {addRenderLayer, RenderLayer} from "./renderlayer";
+import {addRenderLayer, RenderLayer, unselectAllRenderLayers} from "./renderlayer";
+import {getRenderLayersProperty} from "../properties";
 
 let renderLayerPanel: Panel;
 
 export function loadRenderLayerPanel(): void {
     // Spectre Layers panel
     renderLayerPanel = createRenderLayerPanel();
-    updateInterfacePanels();
 }
 
 export function unloadRenderLayerPanel(): void {
@@ -25,7 +25,7 @@ export function addRenderLayerDialog(): void {
             // TODO - Warning for if any results are missing
             let renderLayer: RenderLayer = new RenderLayer({
                 name: formResult.layerName || "Layer",
-                type: formResult.layerType || "no_type",
+                typeIdentifier: formResult.layerType || "no_type",
                 textureIdentifier: formResult.textureIdentifier || "minecraft:no_texture",
                 previewTextureUuid: formResult.previewTextureIndex || Texture.getDefault().uuid
             });
@@ -42,18 +42,45 @@ function createRenderLayerPanel(): Panel {
     // @ts-expect-error - I don't know why my IDE is erroring Vue here, but it does work fine
     let renderLayerComponent = Vue.extend({
         props: {
-
+            layer: RenderLayer
         },
         methods: {
-
+            getLayerDescription(layer: RenderLayer): string {
+                return `${layer.data.typeIdentifier} - ${layer.data.textureIdentifier}`;
+            },
+            closeContextMenu(): void {
+                // @ts-ignore
+                if (Menu.open) Menu.open.hide();
+            }
         },
         template: `
+            <li
+                v-bind:class="{ selected: layer.selected}"
+                v-bind:layerid="layer.data.previewTextureUuid"
+                class="texture"
+                @click.stop="closeContextMenu();layer.select($event)"
+            >
+              <div class="texture_icon_wrapper">
+                <img 
+                    v-bind:layerid="layer.data.name"
+                    v-bind:src="layer.getTextureSource()"
+                    class="texture_icon"
+                    width="48px"
+                    alt=""
+                />
+              </div>
+              <div class="texture_description_wrapper">
+                <div class="texture_name">{{ layer.data.name }}</div>
+                <div class="texture_res">{{ getLayerDescription(layer) }}</div>
+              </div>
+            </li>
         `
     })
 
-    return new Panel("render_layers", {
+    return new RenderLayerPanel("render_layers", {
         icon: "fa-layer-group",
         name: "Spectre Layers",
+        id: "render_layers",
         growable: true,
         resizable: true,
         condition: {
@@ -70,7 +97,9 @@ function createRenderLayerPanel(): Panel {
             sidebar_index: 2
         },
         toolbars: [
-            new Toolbar("render_layer_list", {
+            new Toolbar("spectre_layer_toolbar", {
+                name: "Spectre Layers Toolbar",
+                id: "spectre_layer_toolbar",
                 children: [
                     "create-spectre-render-layer",
                     "+", // Everything after this will appear to the right of the bar instead of the left
@@ -78,20 +107,39 @@ function createRenderLayerPanel(): Panel {
                 ]
             })
         ],
-        form: new InputForm({}), // TODO - input form
+        onResize() {
+            this.inside_vue._data.currentFrame += 1;
+            this.inside_vue._data.currentFrame -= 1;
+        },
         component: {
             name: "spectre-render-layers",
             data() { return {
-
+                renderlayers: getRenderLayersProperty()
             }},
             components: {
                 "RenderLayer": renderLayerComponent
             },
             methods: {
-
+                openMenu(event: MouseEvent): void {
+                    renderLayerPanel.menu.show(event);
+                },
+                getRenderLayers() {
+                    return this.renderlayers;
+                },
+                unselectAllLayers(): void {
+                    unselectAllRenderLayers();
+                }
             },
             template: `
-                
+                <div>
+                  <ul id="render_layer_list" class="list mobile_scrollbar" @contextmenu.stop.prevent="openMenu($event)" @click.stop="unselectAllLayers()">
+                    <RenderLayer
+                      v-for="layer in getRenderLayers()"
+                      :key="layer.data.previewTextureUuid" 
+                      :layer="layer"
+                    ></RenderLayer>
+                  </ul>
+                </div>
             `
         }
     })
@@ -118,8 +166,8 @@ function createAddRenderLayerFormConfig(): InputFormConfig {
             placeholder: "layer",
         },
         layerType: {
-            label: "Type",
-            description: "The type of the layer",
+            label: "Type Identifier",
+            description: "The type identifier of this Render Layer. Register a custom LayerType with Spectre in your mod, or use a default one.",
             type: "text",
             value: "minecraft:entity",
             placeholder: "minecraft:entity",
@@ -143,5 +191,16 @@ function createAddRenderLayerFormConfig(): InputFormConfig {
             text: "",
             type: "info",
         }
+    }
+}
+
+class RenderLayerPanel extends Panel {
+    constructor(id: string | PanelOptions, data: PanelOptions) {
+        super(id, data);
+    }
+
+    update(dragging?: boolean): this {
+        this.inside_vue.renderlayers = getRenderLayersProperty();
+        return super.update(dragging);
     }
 }

@@ -13,7 +13,7 @@ export function unloadRenderLayers(): void {
 // All information related to RenderLayers which will be saved in the .bbmodel file
 export interface RenderLayerData {
     name: string;
-    type: string;
+    typeIdentifier: string;
     textureIdentifier: string;
     previewTextureUuid: string;
 }
@@ -54,6 +54,7 @@ export class RenderLayer {
 
 export function addRenderLayer(layer: RenderLayer): void {
     getRenderLayersProperty().push(layer);
+    updateInterfacePanels();
 }
 
 export function unselectAllRenderLayers(): void {
