@@ -60,8 +60,13 @@ class RenderLayerProperty extends Property<"array"> {
 
         // Parse each RenderLayerData and convert them into active RenderLayer objects for the instance
         for (const layerData of data[this.name]) {
-            const index: number = data[this.name].indexOf(layerData);
-            instance[this.name][index] = new RenderLayer(layerData);
+            let layer: RenderLayer = new RenderLayer({
+                name: layerData.name || "Layer",
+                typeIdentifier: layerData.typeIdentifier || "no_type",
+                textureIdentifier: layerData.textureIdentifier || "no_texture",
+                previewTextureUuid: layerData.previewTextureUuid
+            });
+            instance[this.name].push(layer);
         }
     }
 
