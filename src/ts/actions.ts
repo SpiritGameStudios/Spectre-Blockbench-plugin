@@ -1,9 +1,11 @@
-import {isSpectreProject, SPECTRE_CODEC} from "./format";
+import {isSpectreProject, SPECTRE_CODEC, SPECTRE_CODEC_FORMAT_ID} from "./format";
 import {addRenderLayerDialog} from "./renderlayer/layerui";
+import {getRenderLayersProperty, GROUP_RENDER_LAYER_UUID_PROPERTY_ID} from "./properties";
 
 export const EXPORT_SPECTRE_ACTION_ID: string = "export-to-spectre-button";
 
 export const CREATE_RENDER_LAYER_ACTION_ID: string = "create-spectre-render-layer";
+export const APPLY_GROUP_RENDER_LAYER_ACTION_ID: string = "group-apply-spectre-layer";
 
 let spectreActions: Array<Action> = [];
 
@@ -25,6 +27,40 @@ export function loadSpectreActions(): void {
             addRenderLayerDialog();
         }
     });
+
+    // TODO - finish this tomorrow, I want to play Splatoon for the rest of tonight
+    Group.prototype.menu.addAction(createSpectreAction(APPLY_GROUP_RENDER_LAYER_ACTION_ID, {
+        name: "Render Layer",
+        icon: "icon-create_bitmap",
+        condition: {
+            formats: [SPECTRE_CODEC_FORMAT_ID],
+            modes: ["edit", "paint"]
+        },
+        children() {
+            let layers: Array<any> = [{
+                icon: "crop_square",
+                name: "Default Layer",
+                click(group) {
+                    console.log(group);
+                }
+            }];
+
+            for (const layer of getRenderLayersProperty()) {
+                layers.push({
+                    name: layer.data.name,
+                    icon: "imagesmode",
+                    click(group: Group) {
+                        group[GROUP_RENDER_LAYER_UUID_PROPERTY_ID] = layer.data.uuid;
+                    }
+                })
+            }
+
+            return layers;
+        },
+        click(group) {
+            console.log(group);
+        }
+    }), 6);
 }
 
 export function unloadSpectreActions(): void {

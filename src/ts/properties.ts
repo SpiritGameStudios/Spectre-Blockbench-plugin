@@ -1,21 +1,29 @@
-import {RenderLayer} from "./renderlayer/renderlayer";
+import {copyToRenderLayerData, RenderLayer, RenderLayerData} from "./renderlayer/renderlayer";
 import {isSpectreProject} from "./format";
 
-export const RENDER_LAYERS_PROPERTY_ID: string = "spectre_project_render_layers";
+export const PROJECT_RENDER_LAYERS_PROPERTY_ID: string = "spectre_render_layers";
+export const GROUP_RENDER_LAYER_UUID_PROPERTY_ID: string = "spectre_layer_uuid";
 
 export function getRenderLayersProperty(): Array<RenderLayer> {
-    return Project[RENDER_LAYERS_PROPERTY_ID] || [];
+    return Project[PROJECT_RENDER_LAYERS_PROPERTY_ID] || [];
 }
 
 let spectreProperties: Property<any>[] = [];
 
 export function loadSpectreProperties(): void {
-    registerSpectreProperty(new RenderLayerProperty(RENDER_LAYERS_PROPERTY_ID, {
+    registerSpectreProperty(new RenderLayerProperty(PROJECT_RENDER_LAYERS_PROPERTY_ID, {
         label: "Spectre Render Layers",
         exposed: false,
         export: true,
         condition: isSpectreProject()
     }));
+
+    createSpectreProperty(Group, "string", GROUP_RENDER_LAYER_UUID_PROPERTY_ID, {
+        label: "Spectre Render Layer UUID",
+        exposed: false,
+        export: true,
+        condition: isSpectreProject()
+    });
 }
 
 export function unloadSpectreProperties(): void {
@@ -55,12 +63,8 @@ class RenderLayerProperty extends Property<"array"> {
         // Parse each RenderLayerData and convert them into active RenderLayer objects for the instance
         // Note: Defaults here need to be synced with defaults in layerui.ts
         for (const layerData of data[this.name]) {
-            let layer: RenderLayer = new RenderLayer({
-                name: layerData.name || "Layer",
-                typeIdentifier: layerData.typeIdentifier || "no_type",
-                textureIdentifier: layerData.textureIdentifier || "no_texture",
-                previewTextureUuid: layerData.previewTextureUuid
-            });
+            let data: RenderLayerData = copyToRenderLayerData(layerData);
+            let layer: RenderLayer = new RenderLayer(data);
             instance[this.name].push(layer);
         }
     }

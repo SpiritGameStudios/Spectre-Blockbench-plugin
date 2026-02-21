@@ -1,5 +1,11 @@
 // This file holds all functions related to Render Layer UI, including panel(s) and input dialogs
-import {addRenderLayer, RenderLayer, RenderLayerData, unselectAllRenderLayers} from "./renderlayer";
+import {
+    addRenderLayer,
+    copyToRenderLayerData,
+    RenderLayer,
+    RenderLayerData,
+    unselectAllRenderLayers
+} from "./renderlayer";
 import {getRenderLayersProperty} from "../properties";
 import {SPECTRE_CODEC_FORMAT_ID} from "../format";
 
@@ -34,22 +40,12 @@ export function addRenderLayerDialog(): void {
         width: 610,
         form: config,
         onConfirm(formResult: any, event: Event): void | boolean {
-            // If "No Texture" was selected, set to undefined,
-            // otherwise attempt the selected texture, then attempt Project default texture, and fallback to undefined
-            let textureUuid: string = formResult.previewTextureUuid == "no_texture" ? undefined
-                : formResult.previewTextureUuid || Texture.getDefault().uuid || undefined
-
-            // Note: Defaults here need to be synced with defaults in properties.ts
-            let renderLayer: RenderLayer = new RenderLayer({
-                name: formResult.layerName || "Layer",
-                typeIdentifier: formResult.layerType || "no_type",
-                textureIdentifier: formResult.textureIdentifier || "no_texture",
-                previewTextureUuid: textureUuid
-            });
-            addRenderLayer(renderLayer);
+            let data: RenderLayerData = copyToRenderLayerData(formResult);
+            let layer: RenderLayer = new RenderLayer(data);
+            addRenderLayer(layer);
 
             dialog.hide();
-            Blockbench.showQuickMessage(`Created "${formResult.layerName || "Layer"}"!`)
+            Blockbench.showQuickMessage(`Created "${layer.data.name || "Layer"}"!`)
         }
     })
     dialog.show();
@@ -65,11 +61,7 @@ export function editRenderLayerDialog(layer: RenderLayer): void {
         width: 610,
         form: config,
         onConfirm(formResult: any, event: Event): void | boolean {
-            layer.data.name = formResult.layerName;
-            layer.data.typeIdentifier = formResult.layerType;
-            layer.data.textureIdentifier = formResult.textureIdentifier;
-            layer.data.previewTextureUuid = formResult.previewTextureUuid == "no_texture" ? undefined
-                : formResult.previewTextureUuid || Texture.getDefault().uuid || undefined;
+            layer.data = copyToRenderLayerData(formResult, layer.data.uuid);
 
             dialog.hide();
             Blockbench.showQuickMessage(`Edited "${layer.data.name}"!`)
@@ -86,7 +78,7 @@ function createRenderLayerPanel(): Panel {
         },
         methods: {
             getLayerDescription(layer: RenderLayer): string {
-                return `${layer.data.typeIdentifier} - ${layer.data.textureIdentifier}`;
+                return `${layer.data.typeId} - ${layer.data.textureId}`;
             },
             closeContextMenu(): void {
                 // @ts-ignore
@@ -94,33 +86,33 @@ function createRenderLayerPanel(): Panel {
             }
         },
         template: `
-            <li
-                v-bind:class="{ selected: layer.selected}"
-                v-bind:layerid="layer.data.previewTextureUuid"
-                class="texture"
-                @dblclick="layer.openEditMenu($event)"
-                @click.stop="closeContextMenu();layer.select($event)"
-            >
-              <div class="texture_icon_wrapper">
-                <img v-if="layer.hasTexture()"
-                    v-bind:layerid="layer.data.name"
-                    v-bind:src="layer.getTextureSource()"
-                    class="texture_icon"
-                    width="48px"
-                    alt=""
-                />
-                <i v-else 
-                   class="material-icons"
-                   style="max-width:48px;font-size:48px"
-                >
-                  imagesmode
-                </i>
-              </div>
-              <div class="texture_description_wrapper">
-                <div class="texture_name">{{ layer.data.name }}</div>
-                <div class="texture_res">{{ getLayerDescription(layer) }}</div>
-              </div>
-            </li>
+          <li
+              v-bind:class="{ selected: layer.selected}"
+              v-bind:layerid="layer.data.previewTexUuid"
+              class="texture"
+              @dblclick="layer.openEditMenu($event)"
+              @click.stop="closeContextMenu();layer.select($event)"
+          >
+            <div class="texture_icon_wrapper">
+              <img v-if="layer.hasTexture()"
+                   v-bind:layerid="layer.data.uuid"
+                   v-bind:src="layer.getTextureSource()"
+                   class="texture_icon"
+                   width="48px"
+                   alt=""
+              />
+              <i v-else
+                 class="material-icons"
+                 style="max-width:48px;font-size:48px"
+              >
+                imagesmode
+              </i>
+            </div>
+            <div class="texture_description_wrapper">
+              <div class="texture_name">{{ layer.data.name }}</div>
+              <div class="texture_res">{{ getLayerDescription(layer) }}</div>
+            </div>
+          </li>
         `
     })
 
@@ -177,7 +169,7 @@ function createRenderLayerPanel(): Panel {
                   <ul id="render_layer_list" class="list mobile_scrollbar" @contextmenu.stop.prevent="openMenu($event)" @click.stop="unselectAllLayers()">
                     <RenderLayer
                       v-for="layer in getRenderLayers()"
-                      :key="layer.data.previewTextureUuid" 
+                      :key="layer.data.uuid" 
                       :layer="layer"
                     ></RenderLayer>
                   </ul>
@@ -212,34 +204,27 @@ function createRenderLayerFormConfig(layerData: RenderLayerData | any = {}): Inp
             value: layerData.name || "",
             placeholder: layerData.name || "Layer"
         },
-        layerType: {
+        typeId: {
             label: "Type Identifier",
             description: "The type identifier of this Render Layer. Register a custom LayerType with Spectre in your mod, or use a default one.",
             type: "text",
-            value: layerData.typeIdentifier || "minecraft:entity",
-            placeholder: layerData.typeIdentifier || "minecraft:entity",
+            value: layerData.typeId || "minecraft:entity",
+            placeholder: layerData.typeId || "minecraft:entity",
         },
-        textureIdentifier: {
+        textureId: {
             label: "Texture Identifier",
             description: "The Minecraft Identifier path for this layer's texture. This will be used when exported, but won't do much for previewing in Blockbench.",
             type: "text",
-            value: layerData.textureIdentifier || "",
-            placeholder: layerData.textureIdentifier || "minecraft:entity/zombie"
+            value: layerData.textureId || "",
+            placeholder: layerData.textureId || "minecraft:entity/zombie"
         },
-        previewTextureUuid: {
+        previewTexUuid: {
             label: "Blockbench Preview Texture",
             description: "The preview texture used in Blockbench. This texture won't be used when exported, only the texture identifier will be used.",
             type: "select",
             options: availableTextures,
-            // FIXME - if no texture from layer data, it defaults to the default value of texture uuid instead of no texture
-            value: layerData.previewTextureUuid || Texture.getDefault() ? Texture.getDefault().uuid : "no_texture"
-        },
-
-        propertiesWhitespace: { label: "", text: "", type: "info" },
-        properties: {
-            label: "Render Layer Properties",
-            text: "",
-            type: "info",
+            value: layerData.previewTexUuid ? layerData.previewTexUuid
+                : Texture.getDefault() ? Texture.getDefault().uuid : "no_texture"
         }
     }
 }
