@@ -33,12 +33,17 @@ export function addRenderLayerDialog(): void {
         width: 610,
         form: config,
         onConfirm(formResult: any, event: Event): void | boolean {
-            // TODO - Warning for if any results are missing
+            // If "No Texture" was selected, set to undefined,
+            // otherwise attempt the selected texture, then attempt Project default texture, and fallback to undefined
+            let textureUuid: string = formResult.previewTextureUuid == "no_texture" ? undefined
+                : formResult.previewTextureUuid || Texture.getDefault().uuid || undefined
+
+            // Note: Defaults here need to be synced with defaults in properties.ts
             let renderLayer: RenderLayer = new RenderLayer({
                 name: formResult.layerName || "Layer",
                 typeIdentifier: formResult.layerType || "no_type",
-                textureIdentifier: formResult.textureIdentifier || "minecraft:no_texture",
-                previewTextureUuid: formResult.previewTextureIndex || Texture.getDefault().uuid
+                textureIdentifier: formResult.textureIdentifier || "no_texture",
+                previewTextureUuid: textureUuid
             });
             addRenderLayer(renderLayer);
 
@@ -72,13 +77,19 @@ function createRenderLayerPanel(): Panel {
                 @click.stop="closeContextMenu();layer.select($event)"
             >
               <div class="texture_icon_wrapper">
-                <img 
+                <img v-if="layer.hasTexture()"
                     v-bind:layerid="layer.data.name"
                     v-bind:src="layer.getTextureSource()"
                     class="texture_icon"
                     width="48px"
                     alt=""
                 />
+                <i v-else 
+                   class="material-icons"
+                   style="max-width:48px;font-size:48px"
+                >
+                  imagesmode
+                </i>
               </div>
               <div class="texture_description_wrapper">
                 <div class="texture_name">{{ layer.data.name }}</div>
@@ -155,6 +166,7 @@ function createAddRenderLayerFormConfig(): InputFormConfig {
     // TODO - I'd love to have image previews of the textures here
     // Map<Texture UUID, Texture Name> - UUID is used for finding the texture, name is used for visual input from user
     let availableTextures: Record<string, string> = {}
+    availableTextures["no_texture"] = "No Texture";
     Texture.all.forEach(texture => {
         availableTextures[texture.uuid] = texture.name;
     })
@@ -184,11 +196,12 @@ function createAddRenderLayerFormConfig(): InputFormConfig {
             type: "text",
             placeholder: "minecraft:entity/zombie"
         },
-        previewTextureIndex: {
+        previewTextureUuid: {
             label: "Blockbench Preview Texture",
             description: "The preview texture used in Blockbench. This texture won't be used when exported, only the texture identifier will be used.",
             type: "select",
-            options: availableTextures
+            options: availableTextures,
+            value: Texture.getDefault() ? Texture.getDefault().uuid : "no_texture"
         },
 
         propertiesWhitespace: { label: "", text: "", type: "info" },

@@ -15,7 +15,7 @@ export interface RenderLayerData {
     name: string;
     typeIdentifier: string;
     textureIdentifier: string;
-    previewTextureUuid: string;
+    previewTextureUuid: string | undefined; // Specifically allowed to be undefined if no texture was selected
 }
 
 // Main class for active instances of RenderLayers for when Blockbench is opened
@@ -37,12 +37,19 @@ export class RenderLayer {
         this.selected = false;
     }
 
+    public hasTexture(): boolean {
+        return this.data.previewTextureUuid != undefined;
+    }
+
     public getTexture(): Texture {
+        if(!this.hasTexture()) return undefined;
+
         let textureIndex: number = Texture.all.findInArray("uuid", this.data.previewTextureUuid);
         return Texture.all[textureIndex] || Texture.getDefault();
     }
 
     public getTextureSource(): string {
+        if (!this.hasTexture()) return undefined;
         return this.getTexture().source;
     }
 

@@ -53,6 +53,7 @@ class RenderLayerProperty extends Property<"array"> {
         }
 
         // Parse each RenderLayerData and convert them into active RenderLayer objects for the instance
+        // Note: Defaults here need to be synced with defaults in layerui.ts
         for (const layerData of data[this.name]) {
             let layer: RenderLayer = new RenderLayer({
                 name: layerData.name || "Layer",
