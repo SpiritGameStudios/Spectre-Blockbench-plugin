@@ -2,6 +2,7 @@ import {isSpectreProject, SPECTRE_CODEC} from "./format";
 import {addRenderLayerDialog} from "./renderlayer/layerui";
 
 export const EXPORT_SPECTRE_ACTION_ID: string = "export-to-spectre-button";
+
 export const CREATE_RENDER_LAYER_ACTION_ID: string = "create-spectre-render-layer";
 
 let spectreActions: Array<Action> = [];
@@ -23,7 +24,7 @@ export function loadSpectreActions(): void {
         click() {
             addRenderLayerDialog();
         }
-    })
+    });
 }
 
 export function unloadSpectreActions(): void {

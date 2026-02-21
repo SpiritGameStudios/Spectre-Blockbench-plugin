@@ -1,5 +1,5 @@
-// This file holds all functions related to Render Layer UI, including panel(s) and input dialog(s)
-import {addRenderLayer, RenderLayer, unselectAllRenderLayers} from "./renderlayer";
+// This file holds all functions related to Render Layer UI, including panel(s) and input dialogs
+import {addRenderLayer, RenderLayer, RenderLayerData, unselectAllRenderLayers} from "./renderlayer";
 import {getRenderLayersProperty} from "../properties";
 import {SPECTRE_CODEC_FORMAT_ID} from "../format";
 
@@ -24,11 +24,12 @@ function updateRenderLayerPanel(): void {
     renderLayerPanel.inside_vue.renderlayers = getRenderLayersProperty();
 }
 
+// Menu for creating a new Render Layer
 export function addRenderLayerDialog(): void {
-    let config: InputFormConfig = createAddRenderLayerFormConfig();
+    let config: InputFormConfig = createRenderLayerFormConfig();
 
     let dialog: Dialog = new Dialog({
-        id: "create_spectre_render_layer",
+        id: "create-spectre-render-layer",
         title: "Create Render Layer",
         width: 610,
         form: config,
@@ -48,9 +49,32 @@ export function addRenderLayerDialog(): void {
             addRenderLayer(renderLayer);
 
             dialog.hide();
-            Blockbench.showQuickMessage(`Created ${formResult.layerName || "Layer"} Render Layer!`)
+            Blockbench.showQuickMessage(`Created "${formResult.layerName || "Layer"}"!`)
         }
     })
+    dialog.show();
+}
+
+// Menu for editing an existing Render Layer
+export function editRenderLayerDialog(layer: RenderLayer): void {
+    let config: InputFormConfig = createRenderLayerFormConfig(layer.data);
+
+    let dialog: Dialog = new Dialog({
+        id: "edit-spectre-render-layer",
+        title: `Edit ${layer.data.name}`,
+        width: 610,
+        form: config,
+        onConfirm(formResult: any, event: Event): void | boolean {
+            layer.data.name = formResult.layerName;
+            layer.data.typeIdentifier = formResult.layerType;
+            layer.data.textureIdentifier = formResult.textureIdentifier;
+            layer.data.previewTextureUuid = formResult.previewTextureUuid == "no_texture" ? undefined
+                : formResult.previewTextureUuid || Texture.getDefault().uuid || undefined;
+
+            dialog.hide();
+            Blockbench.showQuickMessage(`Edited "${layer.data.name}"!`)
+        }
+    });
     dialog.show();
 }
 
@@ -74,6 +98,7 @@ function createRenderLayerPanel(): Panel {
                 v-bind:class="{ selected: layer.selected}"
                 v-bind:layerid="layer.data.previewTextureUuid"
                 class="texture"
+                @dblclick="layer.openEditMenu($event)"
                 @click.stop="closeContextMenu();layer.select($event)"
             >
               <div class="texture_icon_wrapper">
@@ -162,7 +187,10 @@ function createRenderLayerPanel(): Panel {
     })
 }
 
-function createAddRenderLayerFormConfig(): InputFormConfig {
+// Input for creating AND editing a Render Layer
+// layerData is intended to be a RenderLayerData object, but if no data is given, it defaults to an empty object
+// If no data is given, a fallback/default value is used. Otherwise, it attempts to use the data's variable of such
+function createRenderLayerFormConfig(layerData: RenderLayerData | any = {}): InputFormConfig {
     // TODO - I'd love to have image previews of the textures here
     // Map<Texture UUID, Texture Name> - UUID is used for finding the texture, name is used for visual input from user
     let availableTextures: Record<string, string> = {}
@@ -181,27 +209,30 @@ function createAddRenderLayerFormConfig(): InputFormConfig {
             label: "generic.name",
             description: "The name of this Render Layer. Converted to an ID for linking bones/cubes to layers, and used as given for debugging.",
             type: "text",
-            placeholder: "Layer",
+            value: layerData.name || "",
+            placeholder: layerData.name || "Layer"
         },
         layerType: {
             label: "Type Identifier",
             description: "The type identifier of this Render Layer. Register a custom LayerType with Spectre in your mod, or use a default one.",
             type: "text",
-            value: "minecraft:entity",
-            placeholder: "minecraft:entity",
+            value: layerData.typeIdentifier || "minecraft:entity",
+            placeholder: layerData.typeIdentifier || "minecraft:entity",
         },
         textureIdentifier: {
             label: "Texture Identifier",
             description: "The Minecraft Identifier path for this layer's texture. This will be used when exported, but won't do much for previewing in Blockbench.",
             type: "text",
-            placeholder: "minecraft:entity/zombie"
+            value: layerData.textureIdentifier || "",
+            placeholder: layerData.textureIdentifier || "minecraft:entity/zombie"
         },
         previewTextureUuid: {
             label: "Blockbench Preview Texture",
             description: "The preview texture used in Blockbench. This texture won't be used when exported, only the texture identifier will be used.",
             type: "select",
             options: availableTextures,
-            value: Texture.getDefault() ? Texture.getDefault().uuid : "no_texture"
+            // FIXME - if no texture from layer data, it defaults to the default value of texture uuid instead of no texture
+            value: layerData.previewTextureUuid || Texture.getDefault() ? Texture.getDefault().uuid : "no_texture"
         },
 
         propertiesWhitespace: { label: "", text: "", type: "info" },

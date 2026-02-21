@@ -1,6 +1,6 @@
 // This file holds all classes and functions related to handling & manging a project's RenderLayers
 import {getRenderLayersProperty} from "../properties";
-import {loadRenderLayerPanel, unloadRenderLayerPanel} from "./layerui";
+import {editRenderLayerDialog, loadRenderLayerPanel, unloadRenderLayerPanel} from "./layerui";
 
 export function loadRenderLayers(): void {
     loadRenderLayerPanel();
@@ -35,6 +35,11 @@ export class RenderLayer {
 
     public unselect(): void {
         this.selected = false;
+    }
+
+    public openEditMenu(event: MouseEvent): void {
+        this.select(event);
+        editRenderLayerDialog(this);
     }
 
     public hasTexture(): boolean {
