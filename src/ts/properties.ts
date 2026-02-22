@@ -18,11 +18,27 @@ export function loadSpectreProperties(): void {
         condition: isSpectreProject()
     }));
 
+    let availableRenderLayers: Record<string, string> = {}
+    availableRenderLayers["default_layer"] = "Default Layer";
+    getRenderLayersProperty().forEach((layer: RenderLayer) => {
+        availableRenderLayers[layer.data.uuid] = layer.data.name;
+    })
+
     createSpectreProperty(Group, "string", GROUP_RENDER_LAYER_UUID_PROPERTY_ID, {
         label: "Spectre Render Layer UUID",
         exposed: false,
         export: true,
-        condition: isSpectreProject()
+        condition: isSpectreProject(),
+        inputs: {
+            element_panel: {
+                input: {
+                    label: "Render Layer",
+                    description: "This group's Render Layer",
+                    type: "select",
+                    options: availableRenderLayers
+                }
+            }
+        }
     });
 }
 

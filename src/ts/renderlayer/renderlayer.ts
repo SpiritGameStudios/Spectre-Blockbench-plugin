@@ -103,3 +103,7 @@ export function unselectAllRenderLayers(): void {
     });
     updateInterfacePanels();
 }
+
+export function getRenderLayerByUuid(uuid: string): RenderLayer | undefined {
+    return getRenderLayersProperty().find(layer => layer.data.uuid === uuid);
+}

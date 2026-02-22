@@ -1,6 +1,7 @@
 import {isSpectreProject, SPECTRE_CODEC, SPECTRE_CODEC_FORMAT_ID} from "./format";
 import {addRenderLayerDialog} from "./renderlayer/layerui";
 import {getRenderLayersProperty, GROUP_RENDER_LAYER_UUID_PROPERTY_ID} from "./properties";
+import {RenderLayer} from "./renderlayer/renderlayer";
 
 export const EXPORT_SPECTRE_ACTION_ID: string = "export-to-spectre-button";
 
@@ -28,7 +29,6 @@ export function loadSpectreActions(): void {
         }
     });
 
-    // TODO - finish this tomorrow, I want to play Splatoon for the rest of tonight
     Group.prototype.menu.addAction(createSpectreAction(APPLY_GROUP_RENDER_LAYER_ACTION_ID, {
         name: "Render Layer",
         icon: "icon-create_bitmap",
@@ -36,21 +36,27 @@ export function loadSpectreActions(): void {
             formats: [SPECTRE_CODEC_FORMAT_ID],
             modes: ["edit", "paint"]
         },
-        children() {
+        // @ts-expect-error
+        children(context: Group) {
+            function applyRenderLayer(layer: RenderLayer, group: Group): void {
+                group[GROUP_RENDER_LAYER_UUID_PROPERTY_ID] = layer.data.uuid;
+            }
+
             let layers: Array<any> = [{
                 icon: "crop_square",
                 name: "Default Layer",
-                click(group) {
-                    console.log(group);
+                click(group: Group): void {
+
                 }
             }];
 
             for (const layer of getRenderLayersProperty()) {
                 layers.push({
                     name: layer.data.name,
-                    icon: "imagesmode",
-                    click(group: Group) {
-                        group[GROUP_RENDER_LAYER_UUID_PROPERTY_ID] = layer.data.uuid;
+                    icon: layer.hasTexture() ? layer.getTexture().img : "imagesmode",
+                    marked: layer.data.uuid == context[GROUP_RENDER_LAYER_UUID_PROPERTY_ID], // Underline current layer
+                    click(group: Group): void {
+                        applyRenderLayer(layer, group);
                     }
                 })
             }
@@ -60,7 +66,7 @@ export function loadSpectreActions(): void {
         click(group) {
             console.log(group);
         }
-    }), 6);
+    }), Group.prototype.menu.structure.indexOf("move_to_group") + 1); // Apply after Move To (Group) button
 }
 
 export function unloadSpectreActions(): void {
