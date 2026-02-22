@@ -54,8 +54,8 @@ export class RenderLayer {
     public getTexture(): Texture {
         if(!this.hasTexture()) return undefined;
 
-        let textureIndex: number = Texture.all.findInArray("uuid", this.data.previewTexUuid);
-        return Texture.all[textureIndex] || Texture.getDefault();
+        // @ts-expect-error - findInArray actually returns the object, not the object's index in the array ¯\_(ツ)_/¯
+        return Texture.all.findInArray("uuid", this.data.previewTexUuid) || Texture.getDefault();
     }
 
     public getTextureSource(): string {
