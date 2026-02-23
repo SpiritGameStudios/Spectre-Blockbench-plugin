@@ -1,4 +1,37 @@
+import {getRenderLayersProperty} from "./properties";
+
 export const SPECTRE_CODEC_FORMAT_ID: string = "spectre_entity";
+
+// TODO - Default to null layer, either list of preset buttons or button for presets (dropdown like mesh?)
+export interface SpectreExportFormat {
+    author?: string,
+    version: string,
+    layers?: Array<RenderLayerExport>
+    bones?: Array<BoneExport>
+}
+
+export interface RenderLayerExport {
+    name: string, // No duplicates allowed - any duplicates will have an index number appended to its name
+    type: string,
+    [data: string]: any
+}
+
+export interface BoneExport {
+    name: string, // Duplicates allowed
+    layer: string,
+    pivot: ArrayVector3,
+    rotation: ArrayVector3,
+    scale: ArrayVector3,
+    cubes: Array<CubeExport>
+    children?: Array<BoneExport>
+}
+
+export interface CubeExport {
+    name: string, // Duplicates allowed
+    from: ArrayVector3,
+    to: ArrayVector3,
+    uv: ArrayVector2
+}
 
 export const SPECTRE_CODEC: Codec = new Codec(SPECTRE_CODEC_FORMAT_ID, {
     name: "Spectre Entity Model",
@@ -9,21 +42,31 @@ export const SPECTRE_CODEC: Codec = new Codec(SPECTRE_CODEC_FORMAT_ID, {
         type: "json",
         extensions: ["json"],
     },
+    // Note: the order of which fields are added to objects are the same order they're outputted in JSON
     compile(options?: any): any {
-        // this returns quite a lot of metadata about all textures
-        let textures = Project?.textures ?? [];
-        // loop over them and extract the "width" and "height", and "img":"tex":"name" properties
-        let properties = [];
-        for (const texture of textures) {
-            properties.push({
-                texture: texture.img.tex.name, // same format as block textures
-                texture_size: [ // technically more like a ratio than a size but making it the actual ratio (eg, 1:1 for square) would lead to floating point precision issues
-                    texture.width,
-                    texture.height
-                ]
-            });
+        const layersExport: Array<RenderLayerExport> = [];
+        for (const layer of getRenderLayersProperty()) {
+            const layerExport: RenderLayerExport = {
+                name: layer.data.name,
+                type: layer.data.typeId,
+            }
+            if(layer.data.textureId) layerExport.texture = layer.data.textureId;
+            if(layer.hasTexture()) {
+                let texture: Texture = layer.getTexture();
+                layerExport.texture_size = [texture.width, texture.height];
+            }
+            layersExport.push(layerExport);
         }
-        return JSON.stringify({ properties }, null, 2);
+
+
+
+        const spectreExport: SpectreExportFormat = {
+            version: "0.0.1",
+            author: Settings.get("username") ? Settings.get("username").toString() : undefined,
+            layers: layersExport
+        }
+
+        return compileJSON(spectreExport);
     }
 })
 
