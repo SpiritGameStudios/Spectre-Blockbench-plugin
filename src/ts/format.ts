@@ -33,6 +33,7 @@ export interface CubeExport {
     uv: ArrayVector2 // Box UV offset
 }
 
+// Codec handles everything related to the file - compiling & exporting, parsing & importing, etc.
 export const SPECTRE_CODEC: Codec = new Codec(SPECTRE_CODEC_FORMAT_ID, {
     name: "Spectre Entity Model",
     extension: "json",
@@ -78,6 +79,7 @@ export const SPECTRE_CODEC: Codec = new Codec(SPECTRE_CODEC_FORMAT_ID, {
     }
 })
 
+// Format tells Blockbench how to handle the models - Box UV or Face UV, allow rotating cubes, allowed mesh names, etc.
 export const SPECTRE_FORMAT: ModelFormat = new ModelFormat(SPECTRE_CODEC_FORMAT_ID, {
     id: SPECTRE_CODEC_FORMAT_ID,
     name: "Spectre Entity",
@@ -105,7 +107,7 @@ export const SPECTRE_FORMAT: ModelFormat = new ModelFormat(SPECTRE_CODEC_FORMAT_
     centered_grid: true,
     rotate_cubes: true
 })
-SPECTRE_CODEC.format = SPECTRE_FORMAT;
+SPECTRE_CODEC.format = SPECTRE_FORMAT; // Tell the codec to use our Format, I imagine for direct imports of our models
 
 export function unloadSpectreFormat(): void {
     SPECTRE_FORMAT.delete();
@@ -140,10 +142,8 @@ function compileBone(group: Group): BoneExport {
     for (const child of group.children) {
         if (child instanceof Group) {
             children.push(compileBone(child));
-            console.log('hiya');
         } else if (child instanceof Cube) {
             cubes.push(compileCube(child));
-            console.log('heya');
         }
     }
 

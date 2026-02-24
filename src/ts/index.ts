@@ -3,13 +3,13 @@ import {loadSpectreProperties, unloadSpectreProperties} from "./properties";
 import {unloadSpectreFormat} from "./format";
 import {loadSpectreActions, unloadSpectreActions} from "./actions";
 
-function load() {
+function load(): void {
     loadSpectreProperties()
     loadRenderLayers();
     loadSpectreActions();
 }
 
-function unload() {
+function unload(): void {
     unloadRenderLayers();
     unloadSpectreProperties();
     unloadSpectreActions();

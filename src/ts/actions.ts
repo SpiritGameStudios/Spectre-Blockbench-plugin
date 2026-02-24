@@ -63,7 +63,7 @@ export function loadSpectreActions(): void {
 
             return layers;
         },
-        click(group) {
+        click(group): void {
             console.log(group);
         }
     }), Group.prototype.menu.structure.indexOf("move_to_group") + 1); // Apply after Move To (Group) button
