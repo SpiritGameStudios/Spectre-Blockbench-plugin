@@ -18,7 +18,7 @@ export function loadSpectreActions(): void {
         click() {
             SPECTRE_CODEC.export();
         }
-    }, "file.export");
+    }, "file.export.0");
 
     createSpectreAction(CREATE_RENDER_LAYER_ACTION_ID, {
         name: "Create Render Layer",

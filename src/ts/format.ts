@@ -1,4 +1,5 @@
-import {getRenderLayersProperty} from "./properties";
+import {getRenderLayersProperty, GROUP_RENDER_LAYER_UUID_PROPERTY_ID} from "./properties";
+import {getRenderLayerByUuid} from "./renderlayer/renderlayer";
 
 export const SPECTRE_CODEC_FORMAT_ID: string = "spectre_entity";
 
@@ -21,7 +22,6 @@ export interface BoneExport {
     layer: string,
     pivot: ArrayVector3,
     rotation: ArrayVector3,
-    scale: ArrayVector3,
     cubes: Array<CubeExport>
     children?: Array<BoneExport>
 }
@@ -30,7 +30,7 @@ export interface CubeExport {
     name: string, // Duplicates allowed
     from: ArrayVector3,
     to: ArrayVector3,
-    uv: ArrayVector2
+    uv: ArrayVector2 // Box UV offset
 }
 
 export const SPECTRE_CODEC: Codec = new Codec(SPECTRE_CODEC_FORMAT_ID, {
@@ -50,6 +50,8 @@ export const SPECTRE_CODEC: Codec = new Codec(SPECTRE_CODEC_FORMAT_ID, {
                 name: layer.data.name,
                 type: layer.data.typeId,
             }
+
+            // Note: This is determined by the type later
             if(layer.data.textureId) layerExport.texture = layer.data.textureId;
             if(layer.hasTexture()) {
                 let texture: Texture = layer.getTexture();
@@ -58,12 +60,18 @@ export const SPECTRE_CODEC: Codec = new Codec(SPECTRE_CODEC_FORMAT_ID, {
             layersExport.push(layerExport);
         }
 
-
+        const bonesExport: Array<BoneExport> = [];
+        for (const group of Group.all) {
+            if (!group.export) continue;
+            if (group.parent != "root") continue; // Compile only root bones here
+            bonesExport.push(compileBone(group));
+        }
 
         const spectreExport: SpectreExportFormat = {
-            version: "0.0.1",
             author: Settings.get("username") ? Settings.get("username").toString() : undefined,
-            layers: layersExport
+            version: "0.0.1",
+            layers: layersExport,
+            bones: bonesExport
         }
 
         return compileJSON(spectreExport);
@@ -106,4 +114,54 @@ export function unloadSpectreFormat(): void {
 
 export function isSpectreProject(): boolean {
     return Format == SPECTRE_FORMAT;
+}
+
+function compileBone(group: Group): BoneExport {
+    let layerUuid: string = group[GROUP_RENDER_LAYER_UUID_PROPERTY_ID];
+    let layerName: string = getRenderLayerByUuid(layerUuid) ? getRenderLayerByUuid(layerUuid).data.name : "null";
+
+    let origin: ArrayVector3 = structuredClone(group.origin);
+    if (group.parent instanceof Group) { // Subtract parent's origin
+        origin.V3_subtract(group.parent.origin)
+    }
+    origin[0] *= -1; // Flip X
+    origin[1] *= -1; // Flip Y
+    if (!(group.parent instanceof Group)) {
+        origin[1] += 24;
+    }
+
+    let rotation: ArrayVector3 = structuredClone(group.rotation);
+    rotation[0] *= -1; // Flip X;
+    rotation[1] *= -1; // Flip Y
+
+    // group.children[] contains both cubes & groups
+    let cubes: Array<CubeExport> = [];
+    let children: Array<BoneExport> = [];
+    for (const child of group.children) {
+        if (child instanceof Group) {
+            children.push(compileBone(child));
+            console.log('hiya');
+        } else if (child instanceof Cube) {
+            cubes.push(compileCube(child));
+            console.log('heya');
+        }
+    }
+
+    return {
+        name: group.name,
+        layer: layerName,
+        pivot: origin,
+        rotation: rotation,
+        cubes: cubes,
+        children: children.length != 0 ? children : undefined
+    }
+}
+
+function compileCube(cube: Cube): CubeExport {
+    return {
+        name: cube.name,
+        from: cube.from,
+        to: cube.to,
+        uv: cube.uv_offset
+    }
 }
