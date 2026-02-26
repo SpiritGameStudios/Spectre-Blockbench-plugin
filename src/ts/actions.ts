@@ -6,7 +6,6 @@ import {deleteSelectedRenderLayers, RenderLayer} from "./renderlayer/renderlayer
 export const EXPORT_SPECTRE_ACTION_ID: string = "export-to-spectre-button";
 
 export const CREATE_RENDER_LAYER_ACTION_ID: string = "create-spectre-render-layer";
-export const DELETE_RENDER_LAYER_ACTION_ID: string = "delete-spectre-render-layer";
 export const APPLY_GROUP_RENDER_LAYER_ACTION_ID: string = "group-apply-spectre-layer";
 
 let spectreActions: Array<Action> = [];
@@ -36,17 +35,7 @@ export function loadSpectreActions(): void {
         run(): void {
             deleteSelectedRenderLayers();
         }
-    })
-
-    // createSpectreAction(DELETE_RENDER_LAYER_ACTION_ID, {
-    //     name: "Delete Selected Render Layer(s)",
-    //     icon: "delete",
-    //     keybind: "delete",
-    //     condition: () => isSpectreProject(),
-    //     click(): void {
-    //         deleteSelectedRenderLayers();
-    //     }
-    // })
+    });
 
     // Menu Item to apply Render Layers to Groups by right-clicking them
     Group.prototype.menu.addAction(createSpectreAction(APPLY_GROUP_RENDER_LAYER_ACTION_ID, {

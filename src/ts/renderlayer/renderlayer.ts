@@ -4,10 +4,19 @@ import {editRenderLayerDialog, loadRenderLayerPanel, openLayerContextMenu, unloa
 
 export function loadRenderLayers(): void {
     loadRenderLayerPanel();
+
+    // Called on Undo.initEdit AND Undo.finishEdit
+    Blockbench.on("create_undo_save", onCreateUndoSave);
+
+    // Called on undo AND redo
+    Blockbench.on("load_undo_save", onLoadUndoSave)
 }
 
 export function unloadRenderLayers(): void {
     unloadRenderLayerPanel();
+
+    Blockbench.removeListener("create_undo_save", onCreateUndoSave);
+    Blockbench.removeListener("load_undo_save", onLoadUndoSave);
 }
 
 // All information related to RenderLayers which will be saved in the .bbmodel file
@@ -86,8 +95,10 @@ export class RenderLayer {
 }
 
 export function addRenderLayer(layer: RenderLayer): void {
+    initLayerUndo({renderlayers: []});
     getRenderLayersProperty().push(layer);
     updateInterfacePanels();
+    finishLayerUndo("Add Render Layer", {renderlayers: [layer]});
 }
 
 // Create a RenderLayerData object with defaults from an object (e.g. form result)
@@ -121,13 +132,90 @@ export function unselectAllRenderLayers(): void {
 }
 
 export function deleteSelectedRenderLayers(): void {
-    for (const layer of getRenderLayersProperty()) {
-        if (!layer.selected) continue;
+    let selectedLayers: RenderLayer[] = getRenderLayersProperty().filter(layer => layer.selected);
+
+    initLayerUndo({renderlayers: selectedLayers});
+    for (const layer of selectedLayers) {
         layer.remove();
     }
+    finishLayerUndo("Remove Render Layer", {renderlayers: []});
+
     updateInterfacePanels();
 }
 
 export function getRenderLayerByUuid(uuid: string): RenderLayer | undefined {
     return getRenderLayersProperty().find(layer => layer.data.uuid === uuid);
+}
+
+// The normal UndoAspects interface doesn't allow custom properties,
+// but Javascript allows you to sorta just add variable to stuff,
+// so Render Layer undo works by adding our `renderlayers` field to the UndoAspects,
+// and handles them by hooking into Blockbench's create & save undo state events.
+
+// This interface is only here to make the following functions slightly nicer to use compared to normal Undo edit usage
+export interface RenderLayerUndoAspects {
+    renderlayers?: RenderLayer[];
+}
+
+export function initLayerUndo(aspects: RenderLayerUndoAspects): void {
+    Undo.initEdit({
+        // @ts-expect-error
+        renderlayers: aspects.renderlayers
+    });
+}
+
+export function finishLayerUndo(actionName: string, aspects?: RenderLayerUndoAspects): void {
+    if (aspects) {
+        Undo.finishEdit(actionName, {
+            // @ts-expect-error
+            renderlayers: aspects.renderlayers
+        });
+    } else {
+        Undo.finishEdit(actionName);
+    }
+}
+
+function onCreateUndoSave(data: any): void {
+    // Add each Render Layer's UUID to the list
+    let save: UndoSave = data.save as UndoSave;
+    let aspects: UndoAspects = data.aspects as UndoAspects;
+    if (!save || !aspects) return; // Prevent errors
+    if (!aspects["renderlayers"]) return; // Prevent extra data if no render layers in aspects
+
+    save["renderlayers"] = {};
+    aspects["renderlayers"].forEach(layer => {
+        // Clone because setting it directly will continue to reference the object after modifications
+        save["renderlayers"][layer.data.uuid] = structuredClone(layer);
+    });
+}
+
+function onLoadUndoSave(data: any): void {
+    let save: UndoSave = data.save as UndoSave;
+    let reference: UndoSave = data.reference as UndoSave;
+    if (!save || !reference) return;
+    if (!save["renderlayers"]) return;
+
+    // Handle redo and I think layer property changes
+    for (let layerUuid in save["renderlayers"]) {
+        if (reference["renderlayers"][layerUuid]) {
+            let layer: RenderLayer = getRenderLayerByUuid(layerUuid);
+            if (!layer) continue;
+
+            layer.data = save["renderlayers"][layerUuid].data;
+        } else {
+            addRenderLayer(new RenderLayer(save["renderlayers"][layerUuid].data));
+        }
+
+    }
+
+    // Handle undo
+    for (let layerUuid in reference["renderlayers"]) {
+        if (save["renderlayers"][layerUuid]) continue; // Skip edits where layers are only modified
+
+        let layer: RenderLayer = getRenderLayerByUuid(layerUuid);
+        if (!layer) continue;
+        layer.unselect();
+        layer.remove();
+    }
+    updateInterfacePanels();
 }

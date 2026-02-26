@@ -2,7 +2,9 @@
 import {
     addRenderLayer,
     copyToRenderLayerData,
+    finishLayerUndo,
     getRenderLayerByUuid,
+    initLayerUndo,
     RenderLayer,
     RenderLayerData,
     unselectAllRenderLayers
@@ -100,10 +102,12 @@ export function editRenderLayerDialog(layer: RenderLayer): void {
         width: 610,
         form: config,
         onConfirm(formResult: any, event: Event): void | boolean {
+            initLayerUndo({renderlayers: [layer]});
             layer.data = copyToRenderLayerData(formResult, layer.data.uuid);
 
             dialog.hide();
             Blockbench.showQuickMessage(`Edited "${layer.data.name}"!`)
+            finishLayerUndo("Edit Render Layer");
         }
     });
     dialog.show();
