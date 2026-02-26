@@ -1,6 +1,6 @@
 // This file holds all classes and functions related to handling & manging a project's RenderLayers
 import {getRenderLayersProperty} from "../properties";
-import {editRenderLayerDialog, loadRenderLayerPanel, unloadRenderLayerPanel} from "./layerui";
+import {editRenderLayerDialog, loadRenderLayerPanel, openLayerContextMenu, unloadRenderLayerPanel} from "./layerui";
 
 export function loadRenderLayers(): void {
     loadRenderLayerPanel();
@@ -13,7 +13,7 @@ export function unloadRenderLayers(): void {
 // All information related to RenderLayers which will be saved in the .bbmodel file
 export interface RenderLayerData {
     name: string; // Layer name
-    uuid?: string; // Layer UUID
+    uuid?: string; // Layer UUID - Set by the RenderLayer's constructor during creation, or just set during parsing
     typeId: string; // Layer Type Identifier path
     textureId: string; // Texture Identifier path
     // "no_texture" allows the data to define specifically not to search for any texture UUIDs as fallback
@@ -34,6 +34,11 @@ export class RenderLayer {
     }
 
     public select(event: MouseEvent): void {
+        if (event && (event.shiftKey || event.ctrlOrCmd || Pressing.overrides.ctrl || Pressing.overrides.shift)) {
+            // TODO - multi select logic here
+        } else {
+            unselectAllRenderLayers();
+        }
         this.selected = true;
         updateInterfacePanels();
     }
@@ -42,9 +47,16 @@ export class RenderLayer {
         this.selected = false;
     }
 
-    public openEditMenu(event: MouseEvent): void {
+    // Double left click edit dialog menu
+    public openEditDialog(event: MouseEvent): void {
         this.select(event);
         editRenderLayerDialog(this);
+    }
+
+    // Right click options menu
+    public openContextMenu(event: MouseEvent): void {
+        this.select(event);
+        openLayerContextMenu(this, event);
     }
 
     public hasTexture(): boolean {
@@ -64,8 +76,12 @@ export class RenderLayer {
     }
 
     // Gather all data to be saved to the .bbmodel file when compiled
-    public getSaveCopy() {
+    public getSaveCopy(): RenderLayerData {
         return this.data;
+    }
+
+    public remove(): void {
+        getRenderLayersProperty().remove(this);
     }
 }
 
@@ -101,6 +117,14 @@ export function unselectAllRenderLayers(): void {
     getRenderLayersProperty().forEach(layer => {
         layer.unselect();
     });
+    updateInterfacePanels();
+}
+
+export function deleteSelectedRenderLayers(): void {
+    for (const layer of getRenderLayersProperty()) {
+        if (!layer.selected) continue;
+        layer.remove();
+    }
     updateInterfacePanels();
 }
 

@@ -1,11 +1,12 @@
 import {isSpectreProject, SPECTRE_CODEC, SPECTRE_CODEC_FORMAT_ID} from "./format";
-import {addRenderLayerDialog} from "./renderlayer/layerui";
+import {addRenderLayerDialog, RENDER_LAYER_PANEL_ID} from "./renderlayer/layerui";
 import {getRenderLayersProperty, GROUP_RENDER_LAYER_UUID_PROPERTY_ID} from "./properties";
-import {RenderLayer} from "./renderlayer/renderlayer";
+import {deleteSelectedRenderLayers, RenderLayer} from "./renderlayer/renderlayer";
 
 export const EXPORT_SPECTRE_ACTION_ID: string = "export-to-spectre-button";
 
 export const CREATE_RENDER_LAYER_ACTION_ID: string = "create-spectre-render-layer";
+export const DELETE_RENDER_LAYER_ACTION_ID: string = "delete-spectre-render-layer";
 export const APPLY_GROUP_RENDER_LAYER_ACTION_ID: string = "group-apply-spectre-layer";
 
 let spectreActions: Array<Action> = [];
@@ -15,7 +16,7 @@ export function loadSpectreActions(): void {
         name: "Export Spectre Model",
         icon: "resize",
         condition: () => isSpectreProject(),
-        click() {
+        click(): void {
             SPECTRE_CODEC.export();
         }
     }, "file.export.0");
@@ -24,11 +25,30 @@ export function loadSpectreActions(): void {
         name: "Create Render Layer",
         icon: "icon-create_bitmap",
         condition: () => isSpectreProject(),
-        click() {
+        click(): void {
             addRenderLayerDialog();
         }
     });
 
+    SharedActions.add("delete", {
+        subject: "render_layer",
+        condition: () => isSpectreProject() && Prop.active_panel == RENDER_LAYER_PANEL_ID,
+        run(): void {
+            deleteSelectedRenderLayers();
+        }
+    })
+
+    // createSpectreAction(DELETE_RENDER_LAYER_ACTION_ID, {
+    //     name: "Delete Selected Render Layer(s)",
+    //     icon: "delete",
+    //     keybind: "delete",
+    //     condition: () => isSpectreProject(),
+    //     click(): void {
+    //         deleteSelectedRenderLayers();
+    //     }
+    // })
+
+    // Menu Item to apply Render Layers to Groups by right-clicking them
     Group.prototype.menu.addAction(createSpectreAction(APPLY_GROUP_RENDER_LAYER_ACTION_ID, {
         name: "Render Layer",
         icon: "icon-create_bitmap",
@@ -36,6 +56,7 @@ export function loadSpectreActions(): void {
             formats: [SPECTRE_CODEC_FORMAT_ID],
             modes: ["edit", "paint"]
         },
+        // FIXME - This doesn't really work well, unsure why yet
         // @ts-expect-error
         children(context: Group) {
             function applyRenderLayer(layer: RenderLayer, group: Group): void {

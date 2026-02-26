@@ -10,11 +10,17 @@ import {
 import {getRenderLayersProperty, GROUP_RENDER_LAYER_UUID_PROPERTY_ID} from "../properties";
 import {SPECTRE_CODEC_FORMAT_ID} from "../format";
 
+export const RENDER_LAYER_PANEL_ID: string = "render_layers_panel";
+
 let renderLayerPanel: Panel;
+let renderLayerContextMenu: Menu;
 
 export function loadRenderLayerPanel(): void {
     // Spectre Layers panel
     renderLayerPanel = createRenderLayerPanel();
+
+    // Right click Render Layer context menu
+    renderLayerContextMenu = createRenderLayerContextMenu();
 
     // Ensure the Spectre Layers Panel stays up to date with Render Layer changes & Project switches
     // THIS EVENT IS SO IMPORTANT IT ISN'T EVEN FUNNY
@@ -23,6 +29,7 @@ export function loadRenderLayerPanel(): void {
 
 export function unloadRenderLayerPanel(): void {
     renderLayerPanel.delete();
+    renderLayerContextMenu.delete();
 
     Blockbench.removeListener("load_editor_state", updateRenderLayerPanel);
 }
@@ -102,6 +109,23 @@ export function editRenderLayerDialog(layer: RenderLayer): void {
     dialog.show();
 }
 
+export function openLayerContextMenu(layer: RenderLayer, event: MouseEvent): void {
+    renderLayerContextMenu.open(event, layer);
+}
+
+function createRenderLayerContextMenu(): Menu {
+    return new Menu([
+        new MenuSeparator("manage"), "delete",
+        new MenuSeparator("properties"), {
+            icon: "list",
+            name: "menu.texture.properties",
+            click(layer: RenderLayer, event: MouseEvent): void {
+                layer.openEditDialog(event)
+            }
+        },
+    ])
+}
+
 function createRenderLayerPanel(): Panel {
     // @ts-expect-error - I don't know why my IDE is erroring Vue here, but it does work fine
     let renderLayerComponent = Vue.extend({
@@ -122,8 +146,9 @@ function createRenderLayerPanel(): Panel {
               v-bind:class="{ selected: layer.selected}"
               v-bind:layerid="layer.data.previewTexUuid"
               class="texture"
-              @dblclick="layer.openEditMenu($event)"
+              @dblclick="layer.openEditDialog($event)"
               @click.stop="closeContextMenu();layer.select($event)"
+              @contextmenu.prevent.stop="layer.openContextMenu($event)"
           >
             <div class="texture_icon_wrapper">
               <img v-if="layer.hasTexture()"
@@ -148,10 +173,10 @@ function createRenderLayerPanel(): Panel {
         `
     })
 
-    return new Panel("render_layers", {
+    return new Panel(RENDER_LAYER_PANEL_ID, {
         icon: "fa-layer-group",
         name: "Spectre Layers",
-        id: "render_layers",
+        id: RENDER_LAYER_PANEL_ID,
         growable: true,
         resizable: true,
         condition: {
