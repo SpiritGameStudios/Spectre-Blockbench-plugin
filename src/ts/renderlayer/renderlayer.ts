@@ -2,6 +2,8 @@
 import {getRenderLayersProperty} from "../properties";
 import {editRenderLayerDialog, loadRenderLayerPanel, openLayerContextMenu, unloadRenderLayerPanel} from "./layerui";
 
+let lastSelectedLayerIndex: number = 0;
+
 export function loadRenderLayers(): void {
     loadRenderLayerPanel();
 
@@ -43,11 +45,22 @@ export class RenderLayer {
     }
 
     public select(event?: MouseEvent): void {
+        let selfIndex: number = getRenderLayersProperty().indexOf(this);
         if (event && (event.shiftKey || event.ctrlOrCmd || Pressing.overrides.ctrl || Pressing.overrides.shift)) {
-            // TODO - multi select logic here
+            if (event.shiftKey || Pressing.overrides.shift) {
+                let startIndex: number = lastSelectedLayerIndex;
+                let endIndex: number = selfIndex;
+                // I think this is a really fancy one-liner way of switching the variables lol
+                if (startIndex > endIndex) [startIndex, endIndex] = [endIndex, startIndex];
+
+                for (let i = startIndex + 1; i < endIndex; i++) {
+                    getRenderLayersProperty()[i].selected = true;
+                }
+            }
         } else {
             unselectAllRenderLayers();
         }
+        lastSelectedLayerIndex = selfIndex;
         this.selected = true;
         updateInterfacePanels();
     }
