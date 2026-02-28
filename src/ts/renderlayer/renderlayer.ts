@@ -42,7 +42,7 @@ export class RenderLayer {
         if (!this.data.uuid) this.data.uuid = guid();
     }
 
-    public select(event: MouseEvent): void {
+    public select(event?: MouseEvent): void {
         if (event && (event.shiftKey || event.ctrlOrCmd || Pressing.overrides.ctrl || Pressing.overrides.shift)) {
             // TODO - multi select logic here
         } else {
@@ -131,6 +131,17 @@ export function unselectAllRenderLayers(): void {
     updateInterfacePanels();
 }
 
+export function moveSelectedRenderLayersToIndex(index: number): void {
+    let selectedLayers: RenderLayer[] = getRenderLayersProperty().filter(layer => layer.selected);
+
+    // Reversed to allow higher up layers to be on top
+    for (const layer of selectedLayers.reverse()) {
+        getRenderLayersProperty().remove(layer);
+        getRenderLayersProperty().splice(index, 0, layer);
+        layer.selected = true;
+    }
+}
+
 export function deleteSelectedRenderLayers(): void {
     let selectedLayers: RenderLayer[] = getRenderLayersProperty().filter(layer => layer.selected);
 
@@ -148,19 +159,20 @@ export function getRenderLayerByUuid(uuid: string): RenderLayer | undefined {
 }
 
 // The normal UndoAspects interface doesn't allow custom properties,
-// but Javascript allows you to sorta just add variable to stuff,
-// so Render Layer undo works by adding our `renderlayers` field to the UndoAspects,
-// and handles them by hooking into Blockbench's create & save undo state events.
+// but Javascript allows you to sorta just add variables to stuff,
+// so Render Layer undo works by adding our render layer fields to the UndoAspects,
+// and handles them by hooking into Blockbench's create & load undo state events.
 
-// This interface is only here to make the following functions slightly nicer to use compared to normal Undo edit usage
 export interface RenderLayerUndoAspects {
-    renderlayers?: RenderLayer[];
+    renderlayers?: RenderLayer[],
+    renderlayer_order?: boolean
 }
 
 export function initLayerUndo(aspects: RenderLayerUndoAspects): void {
     Undo.initEdit({
-        // @ts-expect-error
-        renderlayers: aspects.renderlayers
+        // @ts-expect-error - Custom fields not found in UndoAspects - I guess this comment applies to both fields below?
+        renderlayers: aspects.renderlayers,
+        renderlayer_order: aspects.renderlayer_order
     });
 }
 
@@ -168,54 +180,74 @@ export function finishLayerUndo(actionName: string, aspects?: RenderLayerUndoAsp
     if (aspects) {
         Undo.finishEdit(actionName, {
             // @ts-expect-error
-            renderlayers: aspects.renderlayers
+            renderlayers: aspects.renderlayers,
+            renderlayer_order: aspects.renderlayer_order
         });
     } else {
         Undo.finishEdit(actionName);
     }
 }
 
+// See undo.js#fromState()
 function onCreateUndoSave(data: any): void {
     // Add each Render Layer's UUID to the list
     let save: UndoSave = data.save as UndoSave;
     let aspects: UndoAspects = data.aspects as UndoAspects;
     if (!save || !aspects) return; // Prevent errors
-    if (!aspects["renderlayers"]) return; // Prevent extra data if no render layers in aspects
 
-    save["renderlayers"] = {};
-    aspects["renderlayers"].forEach(layer => {
-        // Clone because setting it directly will continue to reference the object after modifications
-        save["renderlayers"][layer.data.uuid] = structuredClone(layer);
-    });
+    if (aspects["renderlayers"]) {
+        save["renderlayers"] = {};
+        aspects["renderlayers"].forEach(layer => {
+            // Clone because setting it directly will continue to reference the object after modifications
+            save["renderlayers"][layer.data.uuid] = structuredClone(layer);
+        });
+    }
+
+    if (aspects["renderlayer_order"]) {
+        save["renderlayer_order"] = [];
+        getRenderLayersProperty().forEach(layer => {
+            save["renderlayer_order"].push(layer.data.uuid);
+        })
+    }
+
 }
 
+// see undo.js#load()
 function onLoadUndoSave(data: any): void {
     let save: UndoSave = data.save as UndoSave;
     let reference: UndoSave = data.reference as UndoSave;
     if (!save || !reference) return;
-    if (!save["renderlayers"]) return;
 
-    // Handle redo and I think layer property changes
-    for (let layerUuid in save["renderlayers"]) {
-        if (reference["renderlayers"][layerUuid]) {
-            let layer: RenderLayer = getRenderLayerByUuid(layerUuid);
-            if (!layer) continue;
+    if (save["renderlayers"]) {
+        // Handle redo and I think layer property changes
+        for (let layerUuid in save["renderlayers"]) {
+            if (reference["renderlayers"][layerUuid]) {
+                let layer: RenderLayer = getRenderLayerByUuid(layerUuid);
+                if (!layer) continue;
 
-            layer.data = save["renderlayers"][layerUuid].data;
-        } else {
-            addRenderLayer(new RenderLayer(save["renderlayers"][layerUuid].data));
+                layer.data = save["renderlayers"][layerUuid].data;
+            } else {
+                // FIXME - This doesn't save the Render Layer's position, but that's also a bug with textures ¯\_(ツ)_/¯
+                addRenderLayer(new RenderLayer(save["renderlayers"][layerUuid].data));
+            }
         }
 
+        // Handle undo
+        for (let layerUuid in reference["renderlayers"]) {
+            if (save["renderlayers"][layerUuid]) continue; // Skip edits where layers are only modified
+
+            let layer: RenderLayer = getRenderLayerByUuid(layerUuid);
+            if (!layer) continue;
+            layer.unselect();
+            layer.remove();
+        }
     }
 
-    // Handle undo
-    for (let layerUuid in reference["renderlayers"]) {
-        if (save["renderlayers"][layerUuid]) continue; // Skip edits where layers are only modified
-
-        let layer: RenderLayer = getRenderLayerByUuid(layerUuid);
-        if (!layer) continue;
-        layer.unselect();
-        layer.remove();
+    if (save["renderlayer_order"]) {
+        getRenderLayersProperty().sort((a, b) => {
+            return save["renderlayer_order"].indexOf(a.data.uuid) - save["renderlayer_order"].indexOf(b.data.uuid);
+        });
     }
+
     updateInterfacePanels();
 }

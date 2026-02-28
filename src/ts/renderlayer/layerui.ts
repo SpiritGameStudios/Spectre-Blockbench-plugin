@@ -5,6 +5,7 @@ import {
     finishLayerUndo,
     getRenderLayerByUuid,
     initLayerUndo,
+    moveSelectedRenderLayersToIndex,
     RenderLayer,
     RenderLayerData,
     unselectAllRenderLayers
@@ -166,6 +167,7 @@ function createRenderLayerPanel(): Panel {
                     if (!active) {
                         let dragDistance: number = Math.sqrt(Math.pow(offsetX, 2) + Math.pow(offsetY, 2));
                         active = dragDistance > 6; // I think this is literally like 6 pixels, very very small
+                        layer.select(dragEvent); // Ensure selected because reordering relies on the layer being selected
                     }
                     if (!active) return;
                     if (dragEvent) dragEvent.preventDefault();
@@ -210,11 +212,15 @@ function createRenderLayerPanel(): Panel {
                     }
                 }
 
+                // FIXME - Something is causing layers to be unselected on release if moved by only one layer
                 function mouseRelease(releaseEvent: MouseEvent): void {
                     if (helper) helper.remove();
                     removeEventListeners(document, "mousemove", mouseMove);
                     removeEventListeners(document, "mouseup", mouseRelease);
                     releaseEvent.stopPropagation();
+
+                    // Capture this before the "drag_hover" classes get removed within the following lines
+                    let outlinerTargetNode: any = document.querySelector("#cubes_list li.outliner_node.drag_hover");
 
                     $(".outliner_node[order]").attr("order", null);
                     $(".drag_hover").removeClass("drag_hover");
@@ -242,13 +248,24 @@ function createRenderLayerPanel(): Panel {
                             if (offset > 24) targetIndex++; // 24 is magic number from textures.js
                         }
 
-                        // TODO - Move ALL selected layers to index, not just this one (why doesn't blockbench do this with textures?)
-                        getRenderLayersProperty().remove(layer);
-                        getRenderLayersProperty().splice(targetIndex, 0, layer);
+                        initLayerUndo({renderlayer_order: true});
+                        moveSelectedRenderLayersToIndex(targetIndex);
+                        finishLayerUndo("Rearrange Render Layers");
                         updateInterfacePanels();
                     }
 
-                    // TODO - Handle moving onto cubes and or groups here
+                    if (outlinerTargetNode) {
+                        let uuid = outlinerTargetNode.id;
+                        let target: OutlinerNode = OutlinerNode.uuids[uuid];
+
+                        if (target.type === "group") {
+                            target[GROUP_RENDER_LAYER_UUID_PROPERTY_ID] = layer.data.uuid;
+                            Blockbench.showQuickMessage(`Applied ${layer.data.name} to ${target.name}!`);
+                        } else {
+                            // TODO - Still figure out how we want to handle applying to cubes
+                            Blockbench.showQuickMessage("Cannot apply Render Layers to cubes! (Only Group Folders!)", 3000);
+                        }
+                    }
                 }
 
                 addEventListeners(document, "mousemove", mouseMove, {passive: false});
