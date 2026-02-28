@@ -140,6 +140,120 @@ function createRenderLayerPanel(): Panel {
             getLayerDescription(layer: RenderLayer): string {
                 return `${layer.data.typeId} - ${layer.data.textureId}`;
             },
+            dragRenderLayer(initEvent: MouseEvent): void {
+                if (initEvent.button == 1) return; // No middle click it seems
+                if (getFocusedTextInput()) return;
+
+                let layer: RenderLayer = this.layer;
+                let active: Boolean = false;
+                let helper: any; // Element for the box dragging indicator
+                let vueScope: any = this;
+
+                // Custom node methods for to prevent multiple usages of ts-expect-error every time they're needed
+                function nodeWithinCursor(node: any, event: MouseEvent): boolean {
+                    // @ts-expect-error
+                    return isNodeUnderCursor(node, event);
+                }
+                function findCursorNode(node: any, event: MouseEvent): any {
+                    // @ts-expect-error
+                    return findNodeUnderCursor(node, event);
+                }
+
+                function mouseMove(dragEvent: MouseEvent): void {
+                    // Require small drag distance before activating dragging behaviour to prevent accidental drags
+                    let offsetX: number = dragEvent.clientX - initEvent.clientX;
+                    let offsetY: number = dragEvent.clientY - initEvent.clientY;
+                    if (!active) {
+                        let dragDistance: number = Math.sqrt(Math.pow(offsetX, 2) + Math.pow(offsetY, 2));
+                        active = dragDistance > 6; // I think this is literally like 6 pixels, very very small
+                    }
+                    if (!active) return;
+                    if (dragEvent) dragEvent.preventDefault();
+
+                    if (!helper) {
+                        helper = vueScope.$el.cloneNode();
+                        helper.classList.add("texture_drag_helper");
+                        helper.setAttribute("layerid", layer.data.uuid);
+
+                        document.body.append(helper);
+                        Blockbench.addFlag("dragging_renderlayer");
+                    }
+                    helper.style.left = `${dragEvent.clientX}px`;
+                    helper.style.top = `${dragEvent.clientY}px`;
+
+                    // Drag - Remove drag blue line indicators
+                    $(".outliner_node[order]").attr("order", null);
+                    $(".drag_hover").removeClass("drag_hover");
+                    $(".texture[order]").attr("order", null);
+
+                    // TODO - Either visualize group which cube is in, or only visualize/allow groups
+                    // Visualize which group the Render Layer would be applied to if dropped right then and there
+                    if (nodeWithinCursor(document.getElementById("cubes_list"), dragEvent)) {
+                        // @ts-expect-error - Unsure why this errors, but it works
+                        for (let node of document.querySelectorAll(".outliner_object")) {
+                            if (!nodeWithinCursor(node, dragEvent)) continue
+                            let parent = node.parentNode;
+                            parent.classList.add("drag_hover");
+                            parent.setAttribute("order", 0);
+                            return;
+                        }
+                    }
+
+                    // Visualize placement of dragged Render Layer
+                    if (nodeWithinCursor(document.querySelector("#render_layer_list"), dragEvent)) {
+                        let targetRenderLayerElement = findCursorNode("#render_layer_list li.texture", dragEvent);
+                        if (targetRenderLayerElement) {
+                            let targetOffsetY: number = dragEvent.clientY - $(targetRenderLayerElement).offset().top;
+                            targetRenderLayerElement.setAttribute("order", targetOffsetY > 24 ? "1" : "-1");
+                            return;
+                        }
+                    }
+                }
+
+                function mouseRelease(releaseEvent: MouseEvent): void {
+                    if (helper) helper.remove();
+                    removeEventListeners(document, "mousemove", mouseMove);
+                    removeEventListeners(document, "mouseup", mouseRelease);
+                    releaseEvent.stopPropagation();
+
+                    $(".outliner_node[order]").attr("order", null);
+                    $(".drag_hover").removeClass("drag_hover");
+                    $(".texture[order]").attr("order", null);
+
+                    // @ts-expect-error - Menu.open isn't recognized for some reason
+                    if (!active || Menu.open) return;
+
+                    Blockbench.removeFlag("dragging_renderlayer");
+
+                    // Handle moving (reordering) layers in the Spectre Layers Panel
+                    if (nodeWithinCursor(document.getElementById("render_layer_list"), releaseEvent)) {
+                        let targetIndex: number = getRenderLayersProperty().length - 1;
+                        let targetRenderLayerElement: any = findCursorNode("#render_layer_list li.texture", releaseEvent);
+                        if (targetRenderLayerElement) {
+                            let layerUuid: string = targetRenderLayerElement.getAttribute("layerid");
+                            let targetRenderLayer: RenderLayer = getRenderLayerByUuid(layerUuid);
+
+                            targetIndex = getRenderLayersProperty().indexOf(targetRenderLayer);
+                            let selfIndex: number = getRenderLayersProperty().indexOf(layer); // layer is this.layer
+                            if (targetIndex == selfIndex) return;
+                            if (selfIndex < targetIndex) targetIndex--;
+
+                            let offset: number = releaseEvent.clientY - $(targetRenderLayerElement).offset().top;
+                            if (offset > 24) targetIndex++; // 24 is magic number from textures.js
+                        }
+
+                        // TODO - Move ALL selected layers to index, not just this one (why doesn't blockbench do this with textures?)
+                        getRenderLayersProperty().remove(layer);
+                        getRenderLayersProperty().splice(targetIndex, 0, layer);
+                        updateInterfacePanels();
+                    }
+
+                    // TODO - Handle moving onto cubes and or groups here
+                }
+
+                addEventListeners(document, "mousemove", mouseMove, {passive: false});
+                addEventListeners(document, "mouseup", mouseRelease, {passive: false});
+            },
             closeContextMenu(): void {
                 // @ts-ignore
                 if (Menu.open) Menu.open.hide();
@@ -148,10 +262,11 @@ function createRenderLayerPanel(): Panel {
         template: `
           <li
               v-bind:class="{ selected: layer.selected}"
-              v-bind:layerid="layer.data.previewTexUuid"
+              v-bind:layerid="layer.data.uuid"
               class="texture"
               @dblclick="layer.openEditDialog($event)"
               @click.stop="closeContextMenu();layer.select($event)"
+              @mousedown.stop="dragRenderLayer($event)"
               @contextmenu.prevent.stop="layer.openContextMenu($event)"
           >
             <div class="texture_icon_wrapper">
@@ -202,8 +317,6 @@ function createRenderLayerPanel(): Panel {
                 id: "spectre_layer_toolbar",
                 children: [
                     "create-spectre-render-layer"
-                    // "+", // Everything after this will appear to the right of the bar instead of the left
-                    // "export-to-spectre-button" // I think this is causing the toolbar to not load right away
                 ]
             })
         ],
@@ -269,8 +382,8 @@ function createRenderLayerFormConfig(layerData: RenderLayerData | any = {}): Inp
             label: "Type Identifier",
             description: "The type identifier of this Render Layer. Register a custom LayerType with Spectre in your mod, or use a default one.",
             type: "text",
-            value: layerData.typeId || "minecraft:entity",
-            placeholder: layerData.typeId || "minecraft:entity",
+            value: layerData.typeId || "spectre:entity",
+            placeholder: layerData.typeId || "spectre:entity",
         },
         textureId: {
             label: "Texture Identifier",
@@ -281,7 +394,7 @@ function createRenderLayerFormConfig(layerData: RenderLayerData | any = {}): Inp
         },
         previewTexUuid: {
             label: "Blockbench Preview Texture",
-            description: "The preview texture used in Blockbench. This texture won't be used when exported, only the texture identifier will be used.",
+            description: "The preview texture used in Blockbench. This texture's width & length may be used in export, but the image itself will not be exported.",
             type: "select",
             options: availableTextures,
             value: layerData.previewTexUuid ? layerData.previewTexUuid
