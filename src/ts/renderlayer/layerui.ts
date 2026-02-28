@@ -167,7 +167,7 @@ function createRenderLayerPanel(): Panel {
                     if (!active) {
                         let dragDistance: number = Math.sqrt(Math.pow(offsetX, 2) + Math.pow(offsetY, 2));
                         active = dragDistance > 6; // I think this is literally like 6 pixels, very very small
-                        layer.select(dragEvent); // Ensure selected because reordering relies on the layer being selected
+                        layer.select(dragEvent, false); // Ensure selected because reordering relies on the layer being selected
                     }
                     if (!active) return;
                     if (dragEvent) dragEvent.preventDefault();
@@ -235,6 +235,7 @@ function createRenderLayerPanel(): Panel {
                     if (nodeWithinCursor(document.getElementById("render_layer_list"), releaseEvent)) {
                         let targetIndex: number = getRenderLayersProperty().length - 1;
                         let targetRenderLayerElement: any = findCursorNode("#render_layer_list li.texture", releaseEvent);
+                        let reverseRearrangeOrder: boolean = false;
                         if (targetRenderLayerElement) {
                             let layerUuid: string = targetRenderLayerElement.getAttribute("layerid");
                             let targetRenderLayer: RenderLayer = getRenderLayerByUuid(layerUuid);
@@ -242,14 +243,18 @@ function createRenderLayerPanel(): Panel {
                             targetIndex = getRenderLayersProperty().indexOf(targetRenderLayer);
                             let selfIndex: number = getRenderLayersProperty().indexOf(layer); // layer is this.layer
                             if (targetIndex == selfIndex) return;
-                            if (selfIndex < targetIndex) targetIndex--;
+                            if (selfIndex < targetIndex) {
+                                targetIndex--;
+                            } else {
+                                reverseRearrangeOrder = true;
+                            }
 
                             let offset: number = releaseEvent.clientY - $(targetRenderLayerElement).offset().top;
                             if (offset > 24) targetIndex++; // 24 is magic number from textures.js
                         }
 
                         initLayerUndo({renderlayer_order: true});
-                        moveSelectedRenderLayersToIndex(targetIndex);
+                        moveSelectedRenderLayersToIndex(targetIndex, reverseRearrangeOrder);
                         finishLayerUndo("Rearrange Render Layers");
                         updateInterfacePanels();
                     }

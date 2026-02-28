@@ -44,7 +44,7 @@ export class RenderLayer {
         if (!this.data.uuid) this.data.uuid = guid();
     }
 
-    public select(event?: MouseEvent): void {
+    public select(event?: MouseEvent, unselect: boolean = true): void {
         let selfIndex: number = getRenderLayersProperty().indexOf(this);
         if (event && (event.shiftKey || event.ctrlOrCmd || Pressing.overrides.ctrl || Pressing.overrides.shift)) {
             if (event.shiftKey || Pressing.overrides.shift) {
@@ -57,7 +57,7 @@ export class RenderLayer {
                     getRenderLayersProperty()[i].selected = true;
                 }
             }
-        } else {
+        } else if(unselect) {
             unselectAllRenderLayers();
         }
         lastSelectedLayerIndex = selfIndex;
@@ -144,11 +144,12 @@ export function unselectAllRenderLayers(): void {
     updateInterfacePanels();
 }
 
-export function moveSelectedRenderLayersToIndex(index: number): void {
+export function moveSelectedRenderLayersToIndex(index: number, reversed: boolean): void {
     let selectedLayers: RenderLayer[] = getRenderLayersProperty().filter(layer => layer.selected);
+    // Sometimes the order needs to be reversed to keep the selected layer order
+    if (reversed) selectedLayers = selectedLayers.reverse();
 
-    // Reversed to allow higher up layers to be on top
-    for (const layer of selectedLayers.reverse()) {
+    for (const layer of selectedLayers) {
         getRenderLayersProperty().remove(layer);
         getRenderLayersProperty().splice(index, 0, layer);
         layer.selected = true;
