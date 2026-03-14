@@ -7,12 +7,12 @@ export const SPECTRE_CODEC_FORMAT_ID: string = "spectre_entity";
 export interface SpectreExportFormat {
     author?: string,
     version: string,
-    layers?: Array<RenderLayerExport>
+    layers?: Record<string, RenderLayerExport>, // Map<LayerName, LayerData>
     bones?: Array<BoneExport>
 }
 
 export interface RenderLayerExport {
-    name: string, // No duplicates allowed - any duplicates will have an index number appended to its name
+    // name: string, // No duplicates allowed - any duplicates will have an index number appended to its name
     type: string,
     [data: string]: any
 }
@@ -45,10 +45,9 @@ export const SPECTRE_CODEC: Codec = new Codec(SPECTRE_CODEC_FORMAT_ID, {
     },
     // Note: the order of which fields are added to objects are the same order they're outputted in JSON
     compile(options?: any): any {
-        const layersExport: Array<RenderLayerExport> = [];
+        const layersMapExport: Record<string, RenderLayerExport> = {};
         for (const layer of getRenderLayersProperty()) {
             const layerExport: RenderLayerExport = {
-                name: layer.data.name,
                 type: layer.data.typeId,
             }
 
@@ -58,7 +57,8 @@ export const SPECTRE_CODEC: Codec = new Codec(SPECTRE_CODEC_FORMAT_ID, {
                 let texture: Texture = layer.getTexture();
                 layerExport.texture_size = [texture.width, texture.height];
             }
-            layersExport.push(layerExport);
+
+            layersMapExport[layer.data.name] = layerExport;
         }
 
         const bonesExport: Array<BoneExport> = [];
@@ -71,7 +71,7 @@ export const SPECTRE_CODEC: Codec = new Codec(SPECTRE_CODEC_FORMAT_ID, {
         const spectreExport: SpectreExportFormat = {
             author: Settings.get("username") ? Settings.get("username").toString() : undefined,
             version: "0.0.1",
-            layers: layersExport,
+            layers: layersMapExport,
             bones: bonesExport
         }
 
