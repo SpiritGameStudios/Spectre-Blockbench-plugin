@@ -102,6 +102,10 @@ export class RenderLayer {
         return this.data;
     }
 
+    public getIdentifier(): string {
+        return this.data.name.toLowerCase().replace(" ", "_");
+    }
+
     public remove(): void {
         getRenderLayersProperty().remove(this);
     }

@@ -1,5 +1,5 @@
 import {CUBE_RENDER_LAYER_UUID_PROPERTY_ID, getRenderLayersProperty} from "./properties";
-import {getRenderLayerByUuid} from "./renderlayer/renderlayer";
+import {getRenderLayerByUuid, RenderLayer} from "./renderlayer/renderlayer";
 
 export const SPECTRE_CODEC_FORMAT_ID: string = "spectre_entity";
 
@@ -14,6 +14,7 @@ export interface SpectreExportFormat {
 export interface RenderLayerExport {
     // name: string, // No duplicates allowed - any duplicates will have an index number appended to its name
     type: string,
+    name: string,
     [data: string]: any
 }
 
@@ -48,7 +49,8 @@ export const SPECTRE_CODEC: Codec = new Codec(SPECTRE_CODEC_FORMAT_ID, {
         const layersMapExport: Record<string, RenderLayerExport> = {};
         for (const layer of getRenderLayersProperty()) {
             const layerExport: RenderLayerExport = {
-                type: layer.data.typeId,
+                name: layer.data.name,
+                type: layer.data.typeId
             }
 
             // Note: This is determined by the type later
@@ -58,7 +60,7 @@ export const SPECTRE_CODEC: Codec = new Codec(SPECTRE_CODEC_FORMAT_ID, {
                 layerExport.texture_size = [texture.width, texture.height];
             }
 
-            layersMapExport[layer.data.name] = layerExport;
+            layersMapExport[layer.getIdentifier()] = layerExport;
         }
 
         const bonesExport: Array<BoneExport> = [];
@@ -155,11 +157,12 @@ function compileBone(group: Group): BoneExport {
 
 function compileCube(cube: Cube): CubeExport {
     let layerUuid: string = cube[CUBE_RENDER_LAYER_UUID_PROPERTY_ID];
-    let layerName: string = getRenderLayerByUuid(layerUuid) ? getRenderLayerByUuid(layerUuid).data.name : "null";
+    let layer: RenderLayer = getRenderLayerByUuid(layerUuid);
+    let layerId: string = layer ? layer.getIdentifier() : "null";
 
     return {
         name: cube.name,
-        layer: layerName,
+        layer: layerId,
         from: cube.from,
         to: cube.to,
         uv: cube.uv_offset
