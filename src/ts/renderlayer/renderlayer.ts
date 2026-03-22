@@ -1,6 +1,6 @@
 // This file holds all classes and functions related to handling & manging a project's RenderLayers
 import {getRenderLayersProperty} from "../properties";
-import {editRenderLayerDialog, loadRenderLayerPanel, openLayerContextMenu, unloadRenderLayerPanel} from "./layerui";
+import {addRenderLayerDialog, loadRenderLayerPanel, openLayerContextMenu, unloadRenderLayerPanel} from "./layerui";
 
 let lastSelectedLayerIndex: number = 0;
 
@@ -72,7 +72,7 @@ export class RenderLayer {
     // Double left click edit dialog menu
     public openEditDialog(event: MouseEvent): void {
         this.select(event);
-        editRenderLayerDialog(this);
+        addRenderLayerDialog({ editingLayer: this });
     }
 
     // Right click options menu

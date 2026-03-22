@@ -25,7 +25,7 @@ export function loadSpectreActions(): void {
         icon: "icon-create_bitmap",
         condition: () => isSpectreProject(),
         click(): void {
-            addRenderLayerDialog();
+            addRenderLayerDialog({ prevTypePresetId: "entity" });
         }
     });
 

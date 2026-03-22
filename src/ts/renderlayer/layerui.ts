@@ -12,6 +12,7 @@ import {
 } from "./renderlayer";
 import {getRenderLayersProperty, GROUP_RENDER_LAYER_UUID_PROPERTY_ID} from "../properties";
 import {SPECTRE_CODEC_FORMAT_ID} from "../format";
+import {RENDER_LAYER_PRESETS, RenderLayerPreset} from "./layerpresets";
 
 export const RENDER_LAYER_PANEL_ID: string = "render_layers_panel";
 
@@ -72,47 +73,85 @@ export function appendLayerNameLabelToGroups(): void {
     }
 }
 
-// Menu for creating a new Render Layer
-export function addRenderLayerDialog(): void {
-    let config: InputFormConfig = createRenderLayerFormConfig();
+export interface RenderLayerDialogOptions {
+    formResults?: any; // For copying the value from previously opened dialogs from changing the Layer Type
+    prevTypePresetId?: string;
+    editingLayer?: RenderLayer, // For editing a Render Layer
+}
+
+// Menu for creating AND editing a new Render Layer
+export function addRenderLayerDialog(options: RenderLayerDialogOptions = {}): void {
+    let dialogTitle: string = options.editingLayer ? `Edit ${options.editingLayer.data.name}` : "Create New Render Layer";
+    let config: InputFormConfig = createRenderLayerFormConfig(options);
 
     let dialog: Dialog = new Dialog({
-        id: "create-spectre-render-layer",
-        title: "Create Render Layer",
+        id: "create-edit-spectre-render-layer",
+        title: dialogTitle,
         width: 610,
         form: config,
+        onFormChange(formResult: { [p: string]: FormResultValue }) {
+            if (!formResult.typePreset) return;
+            // @ts-expect-error
+            let selectedTypePresetId: string = formResult.typePreset;
+            if (selectedTypePresetId != options.prevTypePresetId) {
+                dialog.close();
+                addRenderLayerDialog({
+                    formResults: formResult,
+                    prevTypePresetId: selectedTypePresetId,
+                    editingLayer: options.editingLayer
+                })
+            }
+        },
         onConfirm(formResult: any, event: Event): void | boolean {
-            let data: RenderLayerData = copyToRenderLayerData(formResult);
-            let layer: RenderLayer = new RenderLayer(data);
-            addRenderLayer(layer);
+            let message: string;
+            // Setup type id for copyToRenderLayerData to use
+            if (!formResult.typeId) {
+                formResult.typeId = RENDER_LAYER_PRESETS[formResult.typePreset].id;
+            }
+
+            if (options.editingLayer) { // Edit layer
+                let layer: RenderLayer = options.editingLayer;
+                initLayerUndo({renderlayers: [layer]});
+
+                layer.data = copyToRenderLayerData(formResult, layer.data.uuid);
+
+                message = `Edited "${layer.data.name}"!`;
+                finishLayerUndo("Edit Render Layer");
+            } else { // Create layer
+                let data: RenderLayerData = copyToRenderLayerData(formResult);
+                let layer: RenderLayer = new RenderLayer(data);
+                addRenderLayer(layer);
+
+                message = `Created "${layer.data.name || "Layer"}"!`;
+            }
 
             dialog.hide();
-            Blockbench.showQuickMessage(`Created "${layer.data.name || "Layer"}"!`)
+            Blockbench.showQuickMessage(message);
         }
     })
     dialog.show();
 }
 
 // Menu for editing an existing Render Layer
-export function editRenderLayerDialog(layer: RenderLayer): void {
-    let config: InputFormConfig = createRenderLayerFormConfig(layer.data);
-
-    let dialog: Dialog = new Dialog({
-        id: "edit-spectre-render-layer",
-        title: `Edit ${layer.data.name}`,
-        width: 610,
-        form: config,
-        onConfirm(formResult: any, event: Event): void | boolean {
-            initLayerUndo({renderlayers: [layer]});
-            layer.data = copyToRenderLayerData(formResult, layer.data.uuid);
-
-            dialog.hide();
-            Blockbench.showQuickMessage(`Edited "${layer.data.name}"!`)
-            finishLayerUndo("Edit Render Layer");
-        }
-    });
-    dialog.show();
-}
+// export function editRenderLayerDialog(layer: RenderLayer): void {
+//     let config: InputFormConfig = createRenderLayerFormConfig(layer.data);
+//
+//     let dialog: Dialog = new Dialog({
+//         id: "edit-spectre-render-layer",
+//         title: `Edit ${layer.data.name}`,
+//         width: 610,
+//         form: config,
+//         onConfirm(formResult: any, event: Event): void | boolean {
+//             initLayerUndo({renderlayers: [layer]});
+//             layer.data = copyToRenderLayerData(formResult, layer.data.uuid);
+//
+//             dialog.hide();
+//             Blockbench.showQuickMessage(`Edited "${layer.data.name}"!`)
+//             finishLayerUndo("Edit Render Layer");
+//         }
+//     });
+//     dialog.show();
+// }
 
 export function openLayerContextMenu(layer: RenderLayer, event: MouseEvent): void {
     renderLayerContextMenu.open(event, layer);
@@ -378,7 +417,15 @@ function createRenderLayerPanel(): Panel {
 // Input for creating AND editing a Render Layer
 // layerData is intended to be a RenderLayerData object, but if no data is given, it defaults to an empty object
 // If no data is given, a fallback/default value is used. Otherwise, it attempts to use the data's variable of such
-function createRenderLayerFormConfig(layerData: RenderLayerData | any = {}): InputFormConfig {
+// function createRenderLayerFormConfig(layerData: RenderLayerData | any = {}): InputFormConfig {
+function createRenderLayerFormConfig(dialogOptions: RenderLayerDialogOptions): InputFormConfig {
+    // Map<PresetRecordId, PresetName>
+    let availableTypePresets: Record<string, string> = {};
+    for (let presetId in RENDER_LAYER_PRESETS) {
+        let preset: RenderLayerPreset = RENDER_LAYER_PRESETS[presetId];
+        availableTypePresets[presetId] = preset.name;
+    }
+
     // TODO - I'd love to have image previews of the textures here
     // Map<Texture UUID, Texture Name> - UUID is used for finding the texture, name is used for visual input from user
     let availableTextures: Record<string, string> = {}
@@ -387,7 +434,10 @@ function createRenderLayerFormConfig(layerData: RenderLayerData | any = {}): Inp
         availableTextures[texture.uuid] = texture.name;
     })
 
-    return {
+    let formResults: any = dialogOptions.formResults || {};
+    let layerData: RenderLayerData | any = dialogOptions.editingLayer ? dialogOptions.editingLayer.data : {};
+
+    let config: InputFormConfig = {
         info: {
             label: "Render Layer Info",
             text: "",
@@ -397,30 +447,54 @@ function createRenderLayerFormConfig(layerData: RenderLayerData | any = {}): Inp
             label: "generic.name",
             description: "The name of this Render Layer. Converted to an ID for linking bones/cubes to layers, and used as given for debugging.",
             type: "text",
-            value: layerData.name || "",
+            value: formResults.layerName || layerData.name || "",
             placeholder: layerData.name || "Layer"
+        },
+        typePreset: {
+            label: "Layer Type",
+            description: "The type of this Render Layer.",
+            type: "select",
+            options: availableTypePresets,
+            value: formResults.typePreset || "entity"
         },
         typeId: {
             label: "Type Identifier",
             description: "The type identifier of this Render Layer. Register a custom LayerType with Spectre in your mod, or use a default one.",
             type: "text",
-            value: layerData.typeId || "spectre:entity",
-            placeholder: layerData.typeId || "spectre:entity",
+            toggle_enabled: true,
+            toggle_default: formResults.typeId || layerData.typeId || false, // Enable if a custom id has been entered
+            value: formResults.typeId,
+            placeholder: formResults.typePreset ? RENDER_LAYER_PRESETS[formResults.typePreset].id : layerData.typeId || "spectre:entity",
         },
-        textureId: {
-            label: "Texture Identifier",
-            description: "The Minecraft Identifier path for this layer's texture. This will be used when exported, but won't do much for previewing in Blockbench.",
-            type: "text",
-            value: layerData.textureId || "",
-            placeholder: layerData.textureId || "minecraft:entity/zombie"
+        typeFieldBreak: "_",
+        typeFieldInfo: {
+            label: "Layer Type Fields",
+            text: "",
+            type: "info"
         },
-        previewTexUuid: {
-            label: "Blockbench Preview Texture",
-            description: "The preview texture used in Blockbench. This texture's width & length may be used in export, but the image itself will not be exported.",
-            type: "select",
-            options: availableTextures,
-            value: layerData.previewTexUuid ? layerData.previewTexUuid
-                : Texture.getDefault() ? Texture.getDefault().uuid : "no_texture"
-        }
+        // textureId: {
+        //     label: "Texture Identifier",
+        //     description: "The Minecraft Identifier path for this layer's texture. This will be used when exported, but won't do much for previewing in Blockbench.",
+        //     type: "text",
+        //     value: layerData.textureId || "",
+        //     placeholder: layerData.textureId || "minecraft:entity/zombie"
+        // },
+        // previewTexUuid: {
+        //     label: "Blockbench Preview Texture",
+        //     description: "The preview texture used in Blockbench. This texture's width & length may be used in export, but the image itself will not be exported.",
+        //     type: "select",
+        //     options: availableTextures,
+        //     value: layerData.previewTexUuid ? layerData.previewTexUuid
+        //         : Texture.getDefault() ? Texture.getDefault().uuid : "no_texture"
+        // }
     }
+
+    let appendedTypePreset: RenderLayerPreset = formResults.typePreset ? RENDER_LAYER_PRESETS[formResults.typePreset] : RENDER_LAYER_PRESETS["entity"];
+
+    for (let entry in appendedTypePreset.config) {
+        // Append type config entries to config
+        config[entry] = appendedTypePreset.config[entry];
+    }
+
+    return config;
 }
