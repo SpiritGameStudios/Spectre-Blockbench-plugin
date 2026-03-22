@@ -1,12 +1,12 @@
 import {isSpectreProject, SPECTRE_CODEC, SPECTRE_CODEC_FORMAT_ID} from "./format";
 import {addRenderLayerDialog, RENDER_LAYER_PANEL_ID} from "./renderlayer/layerui";
-import {getRenderLayersProperty, GROUP_RENDER_LAYER_UUID_PROPERTY_ID} from "./properties";
+import {CUBE_RENDER_LAYER_UUID_PROPERTY_ID, getRenderLayersProperty} from "./properties";
 import {deleteSelectedRenderLayers, RenderLayer} from "./renderlayer/renderlayer";
 
 export const EXPORT_SPECTRE_ACTION_ID: string = "export-to-spectre-button";
 
 export const CREATE_RENDER_LAYER_ACTION_ID: string = "create-spectre-render-layer";
-export const APPLY_GROUP_RENDER_LAYER_ACTION_ID: string = "group-apply-spectre-layer";
+export const APPLY_CUBE_RENDER_LAYER_ACTION_ID: string = "cube-apply-spectre-layer";
 
 let spectreActions: Array<Action> = [];
 
@@ -37,8 +37,8 @@ export function loadSpectreActions(): void {
         }
     });
 
-    // Menu Item to apply Render Layers to Groups by right-clicking them
-    Group.prototype.menu.addAction(createSpectreAction(APPLY_GROUP_RENDER_LAYER_ACTION_ID, {
+    // Menu Item to apply Render Layers to Cubes by right-clicking them
+    Cube.prototype.menu.addAction(createSpectreAction(APPLY_CUBE_RENDER_LAYER_ACTION_ID, {
         name: "Render Layer",
         icon: "icon-create_bitmap",
         condition: {
@@ -47,15 +47,15 @@ export function loadSpectreActions(): void {
         },
         // FIXME - This doesn't really work well, unsure why yet
         // @ts-expect-error
-        children(context: Group) {
-            function applyRenderLayer(layer: RenderLayer, group: Group): void {
-                group[GROUP_RENDER_LAYER_UUID_PROPERTY_ID] = layer.data.uuid;
+        children(context: Cube) {
+            function applyRenderLayer(layer: RenderLayer, cube: Cube): void {
+                cube[CUBE_RENDER_LAYER_UUID_PROPERTY_ID] = layer.data.uuid;
             }
 
             let layers: Array<any> = [{
                 icon: "crop_square",
                 name: "Default Layer",
-                click(group: Group): void {
+                click(cube: Cube): void {
 
                 }
             }];
@@ -64,19 +64,19 @@ export function loadSpectreActions(): void {
                 layers.push({
                     name: layer.data.name,
                     icon: layer.hasTexture() ? layer.getTexture().img : "imagesmode",
-                    marked: layer.data.uuid == context[GROUP_RENDER_LAYER_UUID_PROPERTY_ID], // Underline current layer
-                    click(group: Group): void {
-                        applyRenderLayer(layer, group);
+                    marked: layer.data.uuid == context[CUBE_RENDER_LAYER_UUID_PROPERTY_ID], // Underline current layer
+                    click(cube: Cube): void {
+                        applyRenderLayer(layer, cube);
                     }
                 })
             }
 
             return layers;
         },
-        click(group): void {
-            console.log(group);
+        click(cube): void {
+            console.log(cube);
         }
-    }), Group.prototype.menu.structure.indexOf("move_to_group") + 1); // Apply after Move To (Group) button
+    }), Cube.prototype.menu.structure.indexOf("move_to_group") + 1); // Apply after Move To (Group) button
 }
 
 export function unloadSpectreActions(): void {

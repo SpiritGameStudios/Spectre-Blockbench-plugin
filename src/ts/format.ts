@@ -1,4 +1,4 @@
-import {getRenderLayersProperty, GROUP_RENDER_LAYER_UUID_PROPERTY_ID} from "./properties";
+import {CUBE_RENDER_LAYER_UUID_PROPERTY_ID, getRenderLayersProperty} from "./properties";
 import {getRenderLayerByUuid} from "./renderlayer/renderlayer";
 
 export const SPECTRE_CODEC_FORMAT_ID: string = "spectre_entity";
@@ -19,7 +19,6 @@ export interface RenderLayerExport {
 
 export interface BoneExport {
     name: string, // Duplicates allowed
-    layer: string,
     pivot: ArrayVector3,
     rotation: ArrayVector3,
     cubes: Array<CubeExport>
@@ -28,6 +27,7 @@ export interface BoneExport {
 
 export interface CubeExport {
     name: string, // Duplicates allowed
+    layer: string,
     from: ArrayVector3,
     to: ArrayVector3,
     uv: ArrayVector2 // Box UV offset
@@ -119,9 +119,6 @@ export function isSpectreProject(): boolean {
 }
 
 function compileBone(group: Group): BoneExport {
-    let layerUuid: string = group[GROUP_RENDER_LAYER_UUID_PROPERTY_ID];
-    let layerName: string = getRenderLayerByUuid(layerUuid) ? getRenderLayerByUuid(layerUuid).data.name : "null";
-
     let origin: ArrayVector3 = structuredClone(group.origin);
     if (group.parent instanceof Group) { // Subtract parent's origin
         origin.V3_subtract(group.parent.origin)
@@ -149,7 +146,6 @@ function compileBone(group: Group): BoneExport {
 
     return {
         name: group.name,
-        layer: layerName,
         pivot: origin,
         rotation: rotation,
         cubes: cubes,
@@ -158,8 +154,12 @@ function compileBone(group: Group): BoneExport {
 }
 
 function compileCube(cube: Cube): CubeExport {
+    let layerUuid: string = cube[CUBE_RENDER_LAYER_UUID_PROPERTY_ID];
+    let layerName: string = getRenderLayerByUuid(layerUuid) ? getRenderLayerByUuid(layerUuid).data.name : "null";
+
     return {
         name: cube.name,
+        layer: layerName,
         from: cube.from,
         to: cube.to,
         uv: cube.uv_offset

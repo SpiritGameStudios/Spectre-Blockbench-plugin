@@ -2,7 +2,7 @@ import {copyToRenderLayerData, RenderLayer, RenderLayerData} from "./renderlayer
 import {isSpectreProject} from "./format";
 
 export const PROJECT_RENDER_LAYERS_PROPERTY_ID: string = "spectre_render_layers";
-export const GROUP_RENDER_LAYER_UUID_PROPERTY_ID: string = "spectre_layer_uuid";
+export const CUBE_RENDER_LAYER_UUID_PROPERTY_ID: string = "spectre_layer_uuid";
 
 export function getRenderLayersProperty(): Array<RenderLayer> {
     return Project[PROJECT_RENDER_LAYERS_PROPERTY_ID] || [];
@@ -24,7 +24,7 @@ export function loadSpectreProperties(): void {
         availableRenderLayers[layer.data.uuid] = layer.data.name;
     })
 
-    createSpectreProperty(Group, "string", GROUP_RENDER_LAYER_UUID_PROPERTY_ID, {
+    createSpectreProperty(Cube, "string", CUBE_RENDER_LAYER_UUID_PROPERTY_ID, {
         label: "Spectre Render Layer UUID",
         exposed: false,
         export: true,
@@ -33,7 +33,7 @@ export function loadSpectreProperties(): void {
             element_panel: {
                 input: {
                     label: "Render Layer",
-                    description: "This group's Render Layer",
+                    description: "This cube's Render Layer",
                     type: "select",
                     options: availableRenderLayers
                 }

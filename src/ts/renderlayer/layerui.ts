@@ -10,7 +10,7 @@ import {
     RenderLayerData,
     unselectAllRenderLayers
 } from "./renderlayer";
-import {getRenderLayersProperty, GROUP_RENDER_LAYER_UUID_PROPERTY_ID} from "../properties";
+import {CUBE_RENDER_LAYER_UUID_PROPERTY_ID, getRenderLayersProperty} from "../properties";
 import {SPECTRE_CODEC_FORMAT_ID} from "../format";
 import {RENDER_LAYER_PRESETS, RenderLayerPreset} from "./layerpresets";
 
@@ -40,37 +40,6 @@ export function unloadRenderLayerPanel(): void {
 
 function updateRenderLayerPanel(): void {
     renderLayerPanel.inside_vue.renderlayers = getRenderLayersProperty();
-}
-
-// This technically works and I think is the only feasible way of accomplishing what we want,
-// but it's so cursed & fragile that I'm either going to try again later, or disregarding it completely
-export function appendLayerNameLabelToGroups(): void {
-    for (const group of Group.all) {
-        // Delete previous label element by searching elements by id
-        $(`#group_layer_label_${group.uuid}`).remove();
-
-        // Skip if this group doesn't have a render layer, or if the render layer isn't found
-        if (!group[GROUP_RENDER_LAYER_UUID_PROPERTY_ID]) continue;
-        let renderLayer: RenderLayer = getRenderLayerByUuid(group[GROUP_RENDER_LAYER_UUID_PROPERTY_ID]);
-        if (!renderLayer) continue;
-
-        // Skip if the HTML element for this group can't be found
-        let groupElement: HTMLElement = document.getElementById(group.uuid);
-        if (!groupElement && !groupElement.children[0]) continue;
-
-        // Find Group name input (yes it's an input and not a label or heading or anything else)
-        let divElement: Element = groupElement.children[0];
-        let inputElement: Element = divElement.getElementsByTagName("input")[0];
-
-        // Create layer name label next to buttons
-        let renderLayerLabel: HTMLLabelElement = document.createElement("label");
-        renderLayerLabel.id = `group_layer_label_${group.uuid}`;
-        renderLayerLabel.textContent = renderLayer.data.name;
-        renderLayerLabel.style.color = "var(--color-subtle_text)";
-        renderLayerLabel.style.marginRight = "8px";
-
-        inputElement.insertAdjacentElement("afterend", renderLayerLabel);
-    }
 }
 
 export interface RenderLayerDialogOptions {
@@ -302,12 +271,11 @@ function createRenderLayerPanel(): Panel {
                         let uuid = outlinerTargetNode.id;
                         let target: OutlinerNode = OutlinerNode.uuids[uuid];
 
-                        if (target.type === "group") {
-                            target[GROUP_RENDER_LAYER_UUID_PROPERTY_ID] = layer.data.uuid;
+                        if (target.type === "cube") {
+                            target[CUBE_RENDER_LAYER_UUID_PROPERTY_ID] = layer.data.uuid;
                             Blockbench.showQuickMessage(`Applied ${layer.data.name} to ${target.name}!`);
                         } else {
-                            // TODO - Still figure out how we want to handle applying to cubes
-                            Blockbench.showQuickMessage("Cannot apply Render Layers to cubes! (Only Group Folders!)", 3000);
+                            Blockbench.showQuickMessage("Render Layers can only be applied to Cubes!", 3000);
                         }
                     }
                 }
