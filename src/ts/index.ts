@@ -20,7 +20,7 @@ function unload(): void {
 BBPlugin.register(
     'export_to_spectre', {
     title: 'Export to Spectre',
-    author: 'Kilip1000 & CallMeEcho',
+    author: 'Kilip1000, CallMeEcho, & Superkat32',
     description: 'Export your project as a Spectre json.',
     // NOTE: This move back directory needs to be removed when the built js file isn't inside the `dist` folder
     // Also: about.md also seems messed up because of this directory thing, it should fix itself when this is changed
