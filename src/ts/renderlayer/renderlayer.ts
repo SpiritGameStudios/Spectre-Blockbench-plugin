@@ -25,10 +25,15 @@ export function unloadRenderLayers(): void {
 export interface RenderLayerData {
     name: string; // Layer name
     uuid?: string; // Layer UUID - Set by the RenderLayer's constructor during creation, or just set during parsing
+    type: string; // Layer type - Used to determine which edit screen config to show
+
+    // Preset Data
     typeId: string; // Layer Type Identifier path
-    textureId: string; // Texture Identifier path
+    textureId?: string; // Texture Identifier path
     // "no_texture" allows the data to define specifically not to search for any texture UUIDs as fallback
-    previewTexUuid: string | "no_texture"; // Blockbench preview texture UUID
+    previewTexUuid?: string | "no_texture"; // Blockbench preview texture UUID
+
+    tint?: string;
 }
 
 // Main class for active instances of RenderLayers for when Blockbench is opened
@@ -125,6 +130,7 @@ export function copyToRenderLayerData(object: any, copyUuid?: string): RenderLay
     let layerData: RenderLayerData = {
         name: "Layer",
         uuid: copyUuid,
+        type: "no_type",
         typeId: "no_type",
         textureId: "no_texture",
         previewTexUuid: Texture.getDefault() ? Texture.getDefault().uuid : "no_texture"
@@ -133,10 +139,11 @@ export function copyToRenderLayerData(object: any, copyUuid?: string): RenderLay
     if (object.name) layerData.name = object.name;
     if (object.layerName) layerData.name = object.layerName; // Alt variable option
     if (object.uuid && !copyUuid) layerData.uuid = object.uuid;
+    if (object.type) layerData.type = object.type;
+    if (object.typePreset) layerData.type = object.typePreset;
     if (object.typeId) layerData.typeId = object.typeId;
     if (object.textureId) layerData.textureId = object.textureId;
-    if (object.previewTexUuid)
-        layerData.previewTexUuid = object.previewTexUuid;
+    if (object.previewTexUuid) layerData.previewTexUuid = object.previewTexUuid;
 
     return layerData;
 }

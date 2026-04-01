@@ -12,7 +12,7 @@ import {
 } from "./renderlayer";
 import {CUBE_RENDER_LAYER_UUID_PROPERTY_ID, getRenderLayersProperty} from "../properties";
 import {SPECTRE_CODEC_FORMAT_ID} from "../format";
-import {RENDER_LAYER_PRESETS, RenderLayerPreset} from "./layerpresets";
+import {DEFAULT_RENDER_LAYER_PRESET, RENDER_LAYER_PRESETS, RenderLayerPreset} from "./layerpresets";
 
 export const RENDER_LAYER_PANEL_ID: string = "render_layers_panel";
 
@@ -44,11 +44,13 @@ function updateRenderLayerPanel(): void {
 
 export interface RenderLayerDialogOptions {
     formResults?: any; // For copying the value from previously opened dialogs from changing the Layer Type
+    preservedFormResults?: any;
     prevTypePresetId?: string;
     editingLayer?: RenderLayer, // For editing a Render Layer
 }
 
 // Menu for creating AND editing a new Render Layer
+// Oh, Kat, you mismatched cash piano I'll TEAR YOU TO *PIECES* ~Blockbench at how cursed this whole thing is, probably
 export function addRenderLayerDialog(options: RenderLayerDialogOptions = {}): void {
     let dialogTitle: string = options.editingLayer ? `Edit ${options.editingLayer.data.name}` : "Create New Render Layer";
     let config: InputFormConfig = createRenderLayerFormConfig(options);
@@ -60,12 +62,27 @@ export function addRenderLayerDialog(options: RenderLayerDialogOptions = {}): vo
         form: config,
         onFormChange(formResult: { [p: string]: FormResultValue }) {
             if (!formResult.typePreset) return;
+            // Preserve values from other preset types
+            if (!options.preservedFormResults) {
+                options.preservedFormResults = {};
+            }
+            // Copy updated values over to preserved list
+            for (let entry in formResult) {
+                options.preservedFormResults[entry] = formResult[entry];
+            }
+            // Copy lost values over to formResults
+            for (let entry in options.preservedFormResults) {
+                if (formResult[entry]) continue;
+                formResult[entry] = options.preservedFormResults[entry];
+            }
+
             // @ts-expect-error
             let selectedTypePresetId: string = formResult.typePreset;
             if (selectedTypePresetId != options.prevTypePresetId) {
                 dialog.close();
                 addRenderLayerDialog({
                     formResults: formResult,
+                    preservedFormResults: options.preservedFormResults,
                     prevTypePresetId: selectedTypePresetId,
                     editingLayer: options.editingLayer
                 })
@@ -100,27 +117,6 @@ export function addRenderLayerDialog(options: RenderLayerDialogOptions = {}): vo
     })
     dialog.show();
 }
-
-// Menu for editing an existing Render Layer
-// export function editRenderLayerDialog(layer: RenderLayer): void {
-//     let config: InputFormConfig = createRenderLayerFormConfig(layer.data);
-//
-//     let dialog: Dialog = new Dialog({
-//         id: "edit-spectre-render-layer",
-//         title: `Edit ${layer.data.name}`,
-//         width: 610,
-//         form: config,
-//         onConfirm(formResult: any, event: Event): void | boolean {
-//             initLayerUndo({renderlayers: [layer]});
-//             layer.data = copyToRenderLayerData(formResult, layer.data.uuid);
-//
-//             dialog.hide();
-//             Blockbench.showQuickMessage(`Edited "${layer.data.name}"!`)
-//             finishLayerUndo("Edit Render Layer");
-//         }
-//     });
-//     dialog.show();
-// }
 
 export function openLayerContextMenu(layer: RenderLayer, event: MouseEvent): void {
     renderLayerContextMenu.open(event, layer);
@@ -394,14 +390,6 @@ function createRenderLayerFormConfig(dialogOptions: RenderLayerDialogOptions): I
         availableTypePresets[presetId] = preset.name;
     }
 
-    // TODO - I'd love to have image previews of the textures here
-    // Map<Texture UUID, Texture Name> - UUID is used for finding the texture, name is used for visual input from user
-    let availableTextures: Record<string, string> = {}
-    availableTextures["no_texture"] = "No Texture";
-    Texture.all.forEach(texture => {
-        availableTextures[texture.uuid] = texture.name;
-    })
-
     let formResults: any = dialogOptions.formResults || {};
     let layerData: RenderLayerData | any = dialogOptions.editingLayer ? dialogOptions.editingLayer.data : {};
 
@@ -423,7 +411,7 @@ function createRenderLayerFormConfig(dialogOptions: RenderLayerDialogOptions): I
             description: "The type of this Render Layer.",
             type: "select",
             options: availableTypePresets,
-            value: formResults.typePreset || "entity"
+            value: formResults.typePreset || layerData.type || DEFAULT_RENDER_LAYER_PRESET
         },
         typeId: {
             label: "Type Identifier",
@@ -439,29 +427,15 @@ function createRenderLayerFormConfig(dialogOptions: RenderLayerDialogOptions): I
             label: "Layer Type Fields",
             text: "",
             type: "info"
-        },
-        // textureId: {
-        //     label: "Texture Identifier",
-        //     description: "The Minecraft Identifier path for this layer's texture. This will be used when exported, but won't do much for previewing in Blockbench.",
-        //     type: "text",
-        //     value: layerData.textureId || "",
-        //     placeholder: layerData.textureId || "minecraft:entity/zombie"
-        // },
-        // previewTexUuid: {
-        //     label: "Blockbench Preview Texture",
-        //     description: "The preview texture used in Blockbench. This texture's width & length may be used in export, but the image itself will not be exported.",
-        //     type: "select",
-        //     options: availableTextures,
-        //     value: layerData.previewTexUuid ? layerData.previewTexUuid
-        //         : Texture.getDefault() ? Texture.getDefault().uuid : "no_texture"
-        // }
+        }
     }
 
-    let appendedTypePreset: RenderLayerPreset = formResults.typePreset ? RENDER_LAYER_PRESETS[formResults.typePreset] : RENDER_LAYER_PRESETS["entity"];
+    let appendedTypePreset: RenderLayerPreset = formResults.typePreset ? RENDER_LAYER_PRESETS[formResults.typePreset] : RENDER_LAYER_PRESETS[DEFAULT_RENDER_LAYER_PRESET];
+    let appendedConfig: InputFormConfig = appendedTypePreset.config(dialogOptions);
 
-    for (let entry in appendedTypePreset.config) {
+    for (let entry in appendedConfig) {
         // Append type config entries to config
-        config[entry] = appendedTypePreset.config[entry];
+        config[entry] = appendedConfig[entry];
     }
 
     return config;
