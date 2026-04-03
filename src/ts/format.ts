@@ -13,7 +13,7 @@ export interface SpectreExportFormat {
 
 export interface RenderLayerExport {
     name: string,
-    typeId: string,
+    type: string,
     [data: string]: any
 }
 
@@ -90,12 +90,22 @@ export const SPECTRE_CODEC: Codec = new Codec(SPECTRE_CODEC_FORMAT_ID, {
     parse(data: SpectreExportFormat, path: string, args?: LoadOptions): void {
         // Map<Layer ID, Layer UUID>
         let layerMap: Record<string, string> = {};
+
+        let textureSizeSet: boolean = false;
+
         if (data.layers) {
             for (let layerId in data.layers) {
                 let layerExport: RenderLayerExport = data.layers[layerId];
                 let renderLayer: RenderLayer = parseRenderLayer(layerExport);
                 layerMap[layerId] = renderLayer.data.uuid; // data.uuid is set in Render Layer constructor
                 addRenderLayer(renderLayer, false);
+
+                // Set texture size from first layer for now, but use default layer later
+                if (!textureSizeSet && layerExport.texture_size) {
+                    Project.texture_width = layerExport.texture_size[0];
+                    Project.texture_height = layerExport.texture_size[0];
+                    textureSizeSet = true;
+                }
             }
         }
 
@@ -179,8 +189,8 @@ export function isSpectreProject(): boolean {
 function parseRenderLayer(layerExport: RenderLayerExport): RenderLayer {
     let data: RenderLayerData = {
         name: layerExport.name || "Render Layer",
-        type: layerExport.typeId || "no_type",
-        typeId: layerExport.typeId || "no_type",
+        type: layerExport.type || "no_type",
+        typeId: layerExport.type || "no_type",
         textureId: layerExport.texture || undefined,
     }
 
@@ -194,6 +204,19 @@ function parseBone(layerMap: Record<string, string>, boneExport: BoneExport, par
         rotation: boneExport.rotation,
         color: Group.all.length % markerColors.length
     }).init();
+
+    group.rotation[1] *= -1; // Unflip Y
+    group.rotation[0] *= -1; // Unflip X
+    if (!(parentGroup)) {
+        group.origin[1] -= 24;
+    }
+
+    group.origin[1] *= -1;
+    group.origin[0] *= -1;
+
+    if (parentGroup) { // Unsubtract parent's origin
+        group.origin.V3_add(parentGroup.origin);
+    }
 
     // Add Bones/Groups before Cubes, because their order isn't stored in export
     if (boneExport.children) {
@@ -234,7 +257,7 @@ function parseCube(layerMap: Record<string, string>, cubeExport: CubeExport, par
 function compileRenderLayer(layer: RenderLayer): RenderLayerExport {
     const layerExport: RenderLayerExport = {
         name: layer.data.name,
-        typeId: layer.data.typeId
+        type: layer.data.typeId
     }
 
     // Note: This is determined by the type later
