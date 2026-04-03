@@ -265,6 +265,8 @@ function compileRenderLayer(layer: RenderLayer): RenderLayerExport {
     if(layer.hasTexture()) {
         let texture: Texture = layer.getTexture();
         layerExport.texture_size = [texture.width, texture.height];
+    } else if (Project.texture_width && Project.texture_height) { // FIXME - Add texture size to Render Layer Data?
+        layerExport.texture_size = [Project.texture_width, Project.texture_height];
     }
 
     return layerExport;
