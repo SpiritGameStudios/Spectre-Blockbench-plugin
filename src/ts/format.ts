@@ -1,5 +1,5 @@
 import {CUBE_RENDER_LAYER_UUID_PROPERTY_ID, getRenderLayersProperty} from "./properties";
-import {getRenderLayerByUuid, RenderLayer} from "./renderlayer/renderlayer";
+import {addRenderLayer, getRenderLayerByUuid, RenderLayer, RenderLayerData} from "./renderlayer/renderlayer";
 
 export const SPECTRE_CODEC_FORMAT_ID: string = "spectre_entity";
 
@@ -12,9 +12,8 @@ export interface SpectreExportFormat {
 }
 
 export interface RenderLayerExport {
-    // name: string, // No duplicates allowed - any duplicates will have an index number appended to its name
-    typeId: string,
     name: string,
+    typeId: string,
     [data: string]: any
 }
 
@@ -43,6 +42,75 @@ export const SPECTRE_CODEC: Codec = new Codec(SPECTRE_CODEC_FORMAT_ID, {
     load_filter: {
         type: "json",
         extensions: ["json"],
+    },
+    // @ts-expect-error - Unsure why FileResult can't be found but okay
+    load(model: any, file: FileResult, args?: LoadOptions): void {
+        let importIntoCurrentProject: boolean = args ? args.import_to_current_project : false;
+        if (!importIntoCurrentProject) {
+            setupProject(SPECTRE_FORMAT);
+        }
+
+        let appProjectSetup: boolean = file.path && isApp && this.remember && !file.no_file;
+
+        // Setup Project info
+        if (appProjectSetup) {
+            Project.name = pathToName(file.path, false);
+            Project.export_path = file.path;
+            Project.export_codec = SPECTRE_CODEC_FORMAT_ID;
+        }
+
+        // Parse JSON into Blockbench data
+        this.parse(model, file.path, args);
+
+        // Handle extras
+        if (appProjectSetup) {
+            // if (isApp) {
+            //     let noTexturesBefore: boolean = Texture.all.length == 0;
+            //     loadDataFromModelMemory();
+            //     if (!Format.single_texture && noTexturesBefore && Texture.all.length) {
+            //         Cube.all.forEach(cube => {
+            //             cube.applyTexture(Texture.all[0], true);
+            //         });
+            //     }
+            // }
+            //
+            addRecentProject({
+                name, // Borrowed from Blockbench's bedrock format, not a clue what's going on here
+                path: file.path,
+                icon: Format.icon
+            });
+
+            let project: ModelProject = Project;
+            setTimeout(() => {
+                if (Project == project) setTimeout(() => updateRecentProjectThumbnail(), 40);
+            }, 200);
+        }
+
+    },
+    parse(data: SpectreExportFormat, path: string, args?: LoadOptions): void {
+        // Map<Layer ID, Layer UUID>
+        let layerMap: Record<string, string> = {};
+        if (data.layers) {
+            for (let layerId in data.layers) {
+                let layerExport: RenderLayerExport = data.layers[layerId];
+                let renderLayer: RenderLayer = parseRenderLayer(layerExport);
+                layerMap[layerId] = renderLayer.data.uuid; // data.uuid is set in Render Layer constructor
+                addRenderLayer(renderLayer, false);
+            }
+        }
+
+        if (data.bones) {
+            for (let bone of data.bones) {
+                parseBone(layerMap, bone);
+            }
+        }
+
+        // I don't know what these do but they make the silly thing work so yay
+        Canvas.updateAllBones();
+        // @ts-expect-error
+        setProjectTitle();
+        Validator.validate();
+        updateSelection();
     },
     // Note: the order of which fields are added to objects are the same order they're outputted in JSON
     compile(options?: any): any {
@@ -106,6 +174,61 @@ export function unloadSpectreFormat(): void {
 
 export function isSpectreProject(): boolean {
     return Format == SPECTRE_FORMAT;
+}
+
+function parseRenderLayer(layerExport: RenderLayerExport): RenderLayer {
+    let data: RenderLayerData = {
+        name: layerExport.name || "Render Layer",
+        type: layerExport.typeId || "no_type",
+        typeId: layerExport.typeId || "no_type",
+        textureId: layerExport.texture || undefined,
+    }
+
+    return new RenderLayer(data);
+}
+
+function parseBone(layerMap: Record<string, string>, boneExport: BoneExport, parentGroup?: Group): void {
+    let group: Group = new Group({
+        name: boneExport.name,
+        origin: boneExport.pivot,
+        rotation: boneExport.rotation,
+        color: Group.all.length % markerColors.length
+    }).init();
+
+    // Add Bones/Groups before Cubes, because their order isn't stored in export
+    if (boneExport.children) {
+        for (const childExport of boneExport.children) {
+            parseBone(layerMap, childExport, group);
+        }
+    }
+
+    if (boneExport.cubes) {
+        for (const cubeExport of boneExport.cubes) {
+            parseCube(layerMap, cubeExport, group);
+        }
+    }
+
+    if (parentGroup) {
+        group.addTo(parentGroup);
+    }
+}
+
+function parseCube(layerMap: Record<string, string>, cubeExport: CubeExport, parentGroup: Group): void {
+    let cube: Cube = new Cube({
+        name: cubeExport.name || parentGroup.name,
+        autouv: 0,
+        color: parentGroup.color,
+        from: cubeExport.from,
+        to: cubeExport.to,
+        uv_offset: cubeExport.uv
+    });
+
+    let layerUuid: string = layerMap[cubeExport.layer];
+    if (layerUuid) {
+        cube[CUBE_RENDER_LAYER_UUID_PROPERTY_ID] = layerUuid;
+    }
+
+    cube.addTo(parentGroup).init();
 }
 
 function compileRenderLayer(layer: RenderLayer): RenderLayerExport {

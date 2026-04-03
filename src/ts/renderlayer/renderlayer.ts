@@ -116,11 +116,11 @@ export class RenderLayer {
     }
 }
 
-export function addRenderLayer(layer: RenderLayer): void {
-    initLayerUndo({renderlayers: []});
+export function addRenderLayer(layer: RenderLayer, undoable: boolean = true): void {
+    if (undoable) initLayerUndo({renderlayers: []});
     getRenderLayersProperty().push(layer);
     updateInterfacePanels();
-    finishLayerUndo("Add Render Layer", {renderlayers: [layer]});
+    if (undoable) finishLayerUndo("Add Render Layer", {renderlayers: [layer]});
 }
 
 // Create a RenderLayerData object with defaults from an object (e.g. form result)
