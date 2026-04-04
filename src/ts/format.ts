@@ -1,13 +1,5 @@
-import {
-  CUBE_RENDER_LAYER_UUID_PROPERTY_ID,
-  getRenderLayersProperty,
-} from "./properties";
-import {
-  addRenderLayer,
-  getRenderLayerByUuid,
-  RenderLayer,
-  RenderLayerData,
-} from "./renderlayer/renderlayer";
+import {CUBE_RENDER_LAYER_UUID_PROPERTY_ID, getRenderLayersProperty,} from "./properties";
+import {addRenderLayer, getRenderLayerByUuid, RenderLayer, RenderLayerData,} from "./renderlayer/renderlayer";
 
 export const SPECTRE_CODEC_FORMAT_ID: string = "spectre_entity";
 
@@ -225,38 +217,33 @@ function parseBone(
   layerMap: Record<string, string>,
   boneExport: BoneExport,
   parentGroup?: Group,
+  parentOffset: ArrayVector3 = [0, 0, 0]
 ): void {
+  let rotation: ArrayVector3 = correctVector(structuredClone(boneExport.rotation));
+
+  // Don't ask what's happening here, it just works
+  let importCorrectOrigin: ArrayVector3 = structuredClone(correctVector(boneExport.offset.V3_add(parentOffset)));
+  let exportCorrectOrigin: ArrayVector3 = correctVector(structuredClone(importCorrectOrigin));
+  const offset = structuredClone(exportCorrectOrigin).V3_subtract(parentOffset);
+  parentOffset = structuredClone(parentOffset).V3_add(offset);
+
   let group: Group = new Group({
     name: boneExport.name,
-    origin: boneExport.offset,
-    rotation: boneExport.rotation,
+    origin: importCorrectOrigin,
+    rotation: rotation,
     color: Group.all.length % markerColors.length,
   }).init();
-
-  group.rotation[1] *= -1; // Unflip Y
-  group.rotation[0] *= -1; // Unflip X
-  if (!parentGroup) {
-    group.origin[1] -= 24;
-  }
-
-  group.origin[1] *= -1;
-  group.origin[0] *= -1;
-
-  if (parentGroup) {
-    // Unsubtract parent's origin
-    group.origin.V3_add(parentGroup.origin);
-  }
 
   // Add Bones/Groups before Cubes, because their order isn't stored in export
   if (boneExport.children) {
     for (const childExport of boneExport.children) {
-      parseBone(layerMap, childExport, group);
+      parseBone(layerMap, childExport, group, parentOffset);
     }
   }
 
   if (boneExport.cubes) {
     for (const cubeExport of boneExport.cubes) {
-      parseCube(layerMap, cubeExport, group);
+      parseCube(layerMap, cubeExport, group, exportCorrectOrigin);
     }
   }
 
@@ -269,13 +256,17 @@ function parseCube(
   layerMap: Record<string, string>,
   cubeExport: CubeExport,
   parentGroup: Group,
+  pivot: ArrayVector3,
 ): void {
+  let realFrom: ArrayVector3 = [-cubeExport.to[0], -cubeExport.to[1], cubeExport.from[2]].V3_subtract(pivot);
+  let realTo: ArrayVector3 = [-cubeExport.from[0], -cubeExport.from[1], cubeExport.to[2]].V3_subtract(pivot);
+
   let cube: Cube = new Cube({
     name: cubeExport.name || parentGroup.name,
     autouv: 0,
     color: parentGroup.color,
-    from: cubeExport.from,
-    to: cubeExport.to,
+    from: realFrom,
+    to: realTo,
     uv_offset: cubeExport.uv,
   });
 
@@ -328,13 +319,6 @@ function compileBone(group: Group, parentOffset: ArrayVector3): BoneExport {
     } else if (child instanceof Cube) {
       cubes.push(compileCube(child, origin));
     }
-  }
-
-  if (group.parent instanceof Group) {
-    let parentOrigin = structuredClone(group.parent.origin);
-    parentOrigin[0] *= -1; // Flip X
-    parentOrigin[1] *= -1; // Flip Y
-    origin.V3_subtract(parentOrigin);
   }
 
   return {
