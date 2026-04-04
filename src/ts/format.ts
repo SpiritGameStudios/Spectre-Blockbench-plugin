@@ -306,14 +306,15 @@ function compileRenderLayer(layer: RenderLayer): RenderLayerExport {
   return layerExport;
 }
 
-function compileBone(group: Group, parentOffset: ArrayVector3): BoneExport {
-  let origin: ArrayVector3 = structuredClone(group.origin);
-  origin[0] *= -1; // Flip X
-  origin[1] *= -1; // Flip Y
+function correctVector(vec: ArrayVector3): ArrayVector3 {
+  vec[0] *= -1; // Flip X
+  vec[1] *= -1; // Flip Y
+  return vec;
+}
 
-  let rotation: ArrayVector3 = structuredClone(group.rotation);
-  rotation[0] *= -1; // Flip X;
-  rotation[1] *= -1; // Flip Y
+function compileBone(group: Group, parentOffset: ArrayVector3): BoneExport {
+  let origin: ArrayVector3 = correctVector(structuredClone(group.origin));
+  let rotation: ArrayVector3 = correctVector(structuredClone(group.rotation));
 
   const offset = structuredClone(origin).V3_subtract(parentOffset);
   parentOffset = structuredClone(parentOffset).V3_add(offset);
@@ -350,11 +351,13 @@ function compileCube(cube: Cube, pivot: ArrayVector3): CubeExport {
   let layer: RenderLayer = getRenderLayerByUuid(layerUuid);
   let layerId: string = layer ? layer.getIdentifier() : "null";
 
+  let from = structuredClone(cube.from).V3_add(pivot);
+  let to = structuredClone(cube.to).V3_add(pivot);
   return {
     name: cube.name,
     layer: layerId,
-    from: structuredClone(cube.from).V3_add(pivot),
-    to: structuredClone(cube.to).V3_add(pivot),
+    from: [-to[0], -to[1], from[2]],
+    to: [-from[0], -from[1], to[2]],
     uv: cube.uv_offset,
   };
 }
